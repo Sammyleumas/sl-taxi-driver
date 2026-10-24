@@ -1,5 +1,5 @@
 /* ========================================
-   SL-TAXI NAIJA — Main Stylesheet
+   SL-TAXI · IBADAN — Main Stylesheet
 ======================================== */
 
 * {
@@ -47,7 +47,7 @@ body canvas {
 }
 
 .brand span { color: #ffd23f; }
-.brand small { font-size: 9px; color: #35e07a; letter-spacing: 3px; }
+.brand small { font-size: 8px; color: #35e07a; letter-spacing: 2px; font-style: normal; }
 
 .stats {
   position: absolute;
@@ -238,26 +238,256 @@ body canvas {
   to { opacity: 0; }
 }
 
-/* ---------- Ride card ---------- */
-#ride {
+/* ---------- Driver phone ---------- */
+#phone {
   position: absolute;
   left: 50%;
-  bottom: 142px;
-  width: min(92vw, 380px);
+  bottom: 150px;
+  width: 214px;
   transform: translateX(-50%);
-  padding: 10px 12px;
-  font-size: 12px;
-  line-height: 1.5;
-  border-radius: 14px;
-  border: 1px solid #ffd23f88;
-  background: #0b1018e6;
   pointer-events: auto;
-  display: none;
+  cursor: pointer;
+  z-index: 4;
 }
 
-#ride.on { display: block; }
-#ride b { color: #ffd23f; }
+.p-body {
+  position: relative;
+  border: 5px solid #0a0d12;
+  border-radius: 26px;
+  background: #0a0d12;
+  box-shadow: 0 10px 30px #000a, 0 0 0 1.5px #3a4350;
+  overflow: hidden;
+  transform-origin: bottom center;
+}
 
+#phone.ring .p-body {
+  animation: buzz 0.45s infinite;
+  box-shadow: 0 0 0 3px #35e07a, 0 0 26px #35e07a99;
+}
+
+@keyframes buzz {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-3deg); }
+  40% { transform: rotate(3deg); }
+  60% { transform: rotate(-2deg); }
+  80% { transform: rotate(2deg); }
+}
+
+.p-notch {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 44px;
+  height: 7px;
+  border-radius: 6px;
+  background: #000;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+#pHead {
+  position: relative;
+  padding: 20px 12px 9px;
+  color: white;
+  background: linear-gradient(#0f6b3d, #0b4b2b);
+}
+
+.p-status {
+  position: absolute;
+  top: 4px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  opacity: 0.85;
+}
+
+.p-title b { font-size: 13px; }
+
+#pMini {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c8ffd9;
+}
+
+#pApp {
+  max-height: 0;
+  overflow: hidden;
+  background: #f1f4f7;
+  color: #14202b;
+  transition: max-height 0.35s ease;
+}
+
+#phone.full #pApp {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.pcard {
+  padding: 11px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pcard h4 { margin: 0 0 6px; font-size: 13px; color: #0b4b2b; }
+.pcard small { color: #5b6b7a; font-size: 10px; }
+.pcard.center { text-align: center; }
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.who i {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #1f8a50;
+  color: #fff;
+  font-style: normal;
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 34px;
+  text-align: center;
+}
+
+.who b { display: block; font-size: 13px; }
+
+.rt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
+.dot.a { background: #1f8a50; }
+.dot.b { background: #d7192d; border-radius: 2px; }
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 0;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.meta em { font-style: normal; color: #b45309; font-size: 10px; }
+.fare { font-size: 18px; color: #0b4b2b; }
+.big { font-size: 26px; font-weight: 900; color: #0b4b2b; margin: 4px 0; }
+.stars { color: #e6a700; font-size: 18px; }
+
+.cd {
+  height: 5px;
+  margin: 4px 0 8px;
+  border-radius: 3px;
+  background: #d6dde4;
+  overflow: hidden;
+}
+
+.cd i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: #1f8a50;
+}
+
+.prow {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.prow button {
+  flex: 1;
+  padding: 10px 6px;
+  border: 0;
+  border-radius: 10px;
+  color: #fff;
+  font: 800 12px Arial, sans-serif;
+  cursor: pointer;
+}
+
+.prow .yes { background: #1f8a50; }
+.prow .no { background: #b3262f; }
+
+.navrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #e1f5fb;
+}
+
+.navrow b:first-child { font-size: 28px; color: #0e7490; }
+.navrow div b { font-size: 14px; color: #0b4b2b; }
+.navrow div div { font-size: 10px; }
+
+.chat {
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 11px;
+  font-style: italic;
+}
+
+.status { font-weight: 900; margin-bottom: 6px; }
+.status.on { color: #1f8a50; }
+.status.off { color: #6b7280; }
+
+.radar {
+  width: 54px;
+  height: 54px;
+  margin: 6px auto;
+  border-radius: 50%;
+  border: 2px solid #1f8a50;
+  animation: pulse 1.6s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 #1f8a5088; }
+  100% { box-shadow: 0 0 0 22px #1f8a5000; }
+}
+
+.trip {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid #dde3ea;
+  font-size: 11px;
+}
+
+.ptabs {
+  display: flex;
+  border-top: 1px solid #dde3ea;
+  background: #fff;
+}
+
+.ptabs button {
+  flex: 1;
+  padding: 9px 2px;
+  border: 0;
+  background: none;
+  color: #6b7280;
+  font: 800 10px Arial, sans-serif;
+  cursor: pointer;
+}
+
+.ptabs button.on { color: #1f8a50; box-shadow: inset 0 -3px #1f8a50; }
+
+/* ---------- Garage / fuel / police panel ---------- */
 .row {
   display: flex;
   flex-wrap: wrap;
@@ -265,7 +495,6 @@ body canvas {
   margin-top: 8px;
 }
 
-#ride button,
 #panel button {
   flex: 1;
   min-width: 70px;
@@ -278,11 +507,8 @@ body canvas {
   cursor: pointer;
 }
 
-#ride button[data-r="skip"],
-#ride button[data-r="cancel"],
 #panel button[data-a="refuse"] { background: #7f2634; }
 
-/* ---------- Garage / fuel / police panel ---------- */
 #panel {
   position: absolute;
   left: 50%;
@@ -356,36 +582,31 @@ body canvas {
 .controls button.active {
   transform: translateY(3px);
   box-shadow: 0 2px 0 #0005, inset 0 1px #ffffff35;
-  filter: brightness(1.2);
+  filter: brightness(1.25);
 }
 
-.steering {
-  width: 108px;
-  height: 108px;
-  border-radius: 50%;
-  background: #131923c9;
+.arrows {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 2px;
+  gap: 10px;
 }
 
-.wheel-icon { font-size: 48px; line-height: 1; }
-.steering small { font-size: 9px; letter-spacing: 2px; }
-
-.horn {
-  width: 46px;
-  height: 46px;
-  margin-bottom: 8px;
-  border-radius: 50%;
-  font-size: 20px;
-  background: #b8860bd9;
+.arrow {
+  width: 74px;
+  height: 92px;
+  border-radius: 20px;
+  font-size: 34px;
+  background: #131923d9;
 }
 
 .pedals {
   display: flex;
   align-items: end;
+  gap: 8px;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
@@ -397,33 +618,39 @@ body canvas {
   letter-spacing: 1px;
 }
 
+.pedal.small {
+  width: 46px;
+  height: 40px;
+  border-radius: 12px;
+  font-size: 18px;
+}
+
 .brake { background: #7f2634df; }
 .accel { background: #168a50e8; }
-.pedal.nitro { background: #1d4f8fe0; height: 70px; }
+.pedal.nitro { background: #1d4f8fe0; }
+.pedal.hornb { background: #b8860bd9; }
 
 /* ---------- Tablet / desktop ---------- */
 @media (min-width: 700px) {
   .controls { padding: 0 36px 28px; }
-  .steering { width: 125px; height: 125px; }
+  .arrow { width: 96px; height: 110px; font-size: 42px; }
   .pedal { width: 82px; height: 100px; }
-  .pedal.nitro { height: 80px; }
-  .horn { width: 56px; height: 56px; }
+  .pedal.small { width: 60px; height: 46px; }
   .gauge-panel { width: 220px; }
   .gauge-panel canvas { width: 200px; height: 200px; }
   .cam-btn { top: 252px; }
   .stats { font-size: 12px; width: 230px; }
   #mapbox { top: 160px; width: 230px; height: 160px; }
   #nav { top: 330px; width: 230px; }
-  #ride { bottom: 160px; }
+  #phone { bottom: 170px; }
 }
 
 /* ---------- Short landscape phones ---------- */
 @media (max-height: 480px) {
   .controls { bottom: 8px; }
-  .steering { width: 76px; height: 76px; }
-  .wheel-icon { font-size: 34px; }
-  .pedal { height: 60px; }
-  .pedal.nitro { height: 46px; }
+  .arrow { width: 62px; height: 66px; font-size: 26px; }
+  .pedal { height: 62px; }
+  .pedal.small { height: 29px; font-size: 14px; }
   .brand { top: 8px; }
   .stats { top: 34px; }
   .gauge-panel { width: 130px; }
@@ -431,7 +658,7 @@ body canvas {
   .cam-btn { top: 158px; }
   #mapbox { left: 50%; top: 8px; width: 150px; height: 96px; transform: translateX(-50%); }
   #nav { left: 50%; top: 110px; width: 210px; transform: translateX(-50%); }
-  #ride { bottom: 100px; font-size: 11px; }
+  #phone { bottom: 80px; right: 150px; left: auto; transform: scale(0.72); transform-origin: bottom right; }
   .toast { top: 22%; }
   #mapbox.big {
     top: 50%;
