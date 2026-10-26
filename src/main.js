@@ -62,28 +62,54 @@ function rng(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.im
 const hash = (a, b) => (Math.imul(a | 0, 73856093) ^ Math.imul(b | 0, 19349663)) >>> 0;
 
 const B = 160; // city block pitch (road centre to road centre)
-// Ibadan, Oyo State: stylised districts (street names approximate, grid is not a true map)
+// Oyo State, stylised: Ibadan city districts, towns and villages (street names approximate, grid is not a true map)
 const DISTRICTS = [
-  { name: 'Dugbe', streets: ['Dugbe Road', 'Oba Adebimpe Road', 'Ayeye Road', 'Alesinloye Road'], h: [8, 24], walls: [0, 1, 3], tint: 0xffffff, ground: 'dirt', crowd: 1, stallP: 0.9, lm: 'cocoa' },
-  { name: 'Mokola', streets: ['Mokola Road', 'Sabo Road', 'Iwo Road', 'Ojoo Road'], h: [5, 12], walls: [2, 0], tint: 0xf2d9c0, ground: 'dirt', crowd: 0.9, stallP: 0.8, rust: true },
-  { name: 'Challenge', streets: ['Challenge Road', 'Iwo Road', 'Ife Road', 'Orita Challenge Road'], h: [5, 12], walls: [0, 2, 4], tint: 0xe8d0b0, ground: 'dirt', crowd: 1, stallP: 0.95, rust: true },
-  { name: 'Ring Road', streets: ['Ring Road', 'Queen Elizabeth Road', 'Gbagi Road', 'Ibadan-Lagos Expressway'], h: [8, 22], walls: [3, 1], tint: 0xffffff, ground: 'dirt', crowd: 0.9, stallP: 0.7 },
-  { name: 'Bodija', streets: ['Bodija Road', 'Samonda Road', 'Oyo Road', 'Secretariat Road'], h: [5, 14], walls: [3, 0], tint: 0xf4ecdc, ground: 'grass', crowd: 0.6, stallP: 0.5, rust: true },
-  { name: 'Sango (UI)', streets: ['Sango Road', 'University Road', 'Agbowo Road', 'Eleyele Road'], h: [6, 16], walls: [1, 3, 4], tint: 0xe6efe0, ground: 'grass', crowd: 0.8, stallP: 0.5, palm: true },
-  { name: 'Agodi', streets: ['Agodi Gate Road', 'Secretariat Road', 'Adamasingba Road', 'Oyo Road'], h: [8, 20], walls: [3, 4], tint: 0xeef2ff, ground: 'grass', crowd: 0.5, stallP: 0.3 },
-  { name: 'Mapo / Oke Are', streets: ['Mapo Road', 'Oke Are Road', 'Oke Ado Road', 'Molete Road'], h: [5, 11], walls: [2, 0, 1], tint: 0xe3c9a6, ground: 'dirt', crowd: 0.8, stallP: 0.7, rust: true, lm: ['mapo', 'bower'] }
+  // ---------- CITY (Ibadan) ----------
+  { name: 'Dugbe', kind: 'city', streets: ['Dugbe Road', 'Oba Adebimpe Road', 'Ayeye Road', 'Alesinloye Road'], h: [8, 24], walls: [0, 1, 3], tint: 0xffffff, ground: 'dirt', crowd: 1, stallP: 0.9, lm: 'cocoa' },
+  { name: 'Mokola', kind: 'city', streets: ['Mokola Road', 'Sabo Road', 'Iwo Road', 'Ojoo Road'], h: [5, 12], walls: [2, 0], tint: 0xf2d9c0, ground: 'dirt', crowd: 0.9, stallP: 0.8, rust: true },
+  { name: 'Challenge', kind: 'city', streets: ['Challenge Road', 'Iwo Road', 'Ife Road', 'Orita Challenge Road'], h: [5, 12], walls: [0, 2, 4], tint: 0xe8d0b0, ground: 'dirt', crowd: 1, stallP: 0.95, rust: true },
+  { name: 'Ring Road', kind: 'city', streets: ['Ring Road', 'Queen Elizabeth Road', 'Gbagi Road', 'Ibadan-Lagos Expressway'], h: [8, 22], walls: [3, 1], tint: 0xffffff, ground: 'dirt', crowd: 0.9, stallP: 0.7 },
+  { name: 'Bodija', kind: 'city', streets: ['Bodija Road', 'Samonda Road', 'Oyo Road', 'Secretariat Road'], h: [5, 14], walls: [3, 0], tint: 0xf4ecdc, ground: 'grass', crowd: 0.6, stallP: 0.5, rust: true },
+  { name: 'Sango (UI)', kind: 'city', streets: ['Sango Road', 'University Road', 'Agbowo Road', 'Eleyele Road'], h: [6, 16], walls: [1, 3, 4], tint: 0xe6efe0, ground: 'grass', crowd: 0.8, stallP: 0.5, palm: true },
+  { name: 'Agodi', kind: 'city', streets: ['Agodi Gate Road', 'Secretariat Road', 'Adamasingba Road', 'Oyo Road'], h: [8, 20], walls: [3, 4], tint: 0xeef2ff, ground: 'grass', crowd: 0.5, stallP: 0.3 },
+  { name: 'Mapo / Oke Are', kind: 'city', streets: ['Mapo Road', 'Oke Are Road', 'Oke Ado Road', 'Molete Road'], h: [5, 11], walls: [2, 0, 1], tint: 0xe3c9a6, ground: 'dirt', crowd: 0.8, stallP: 0.7, rust: true, lm: ['mapo', 'bower'] },
+  // ---------- TOWNS ----------
+  { name: 'Oyo Town', kind: 'town', streets: ['Alaafin Road', 'Oyo-Ogbomoso Road', 'Akesan Road', 'Palace Road'], h: [4, 9], walls: [2, 0], tint: 0xe6c9a8, ground: 'dirt', crowd: 0.8, stallP: 0.8, density: 0.8, rust: true },
+  { name: 'Ogbomoso', kind: 'town', streets: ['Ogbomoso-Ilorin Road', 'Stadium Road', 'Sabo Road', 'Ahoro Road'], h: [4, 10], walls: [0, 2, 3], tint: 0xf2d9a8, ground: 'dirt', crowd: 0.8, stallP: 0.8, density: 0.8, rust: true },
+  { name: 'Iseyin', kind: 'town', streets: ['Iseyin-Oyo Road', 'Market Road', 'Ago Road', 'Oke-Ola Road'], h: [4, 8], walls: [2, 0], tint: 0xe0c29a, ground: 'dirt', crowd: 0.7, stallP: 0.85, density: 0.75, rust: true, palm: true },
+  { name: 'Saki', kind: 'town', streets: ['Saki-Ogbooro Road', 'Oke-Ogun Road', 'Station Road', 'Palace Road'], h: [4, 9], walls: [0, 3], tint: 0xe8d4b4, ground: 'dirt', crowd: 0.7, stallP: 0.7, density: 0.75, rust: true },
+  // ---------- VILLAGES ----------
+  { name: 'Akinyele Village', kind: 'village', streets: ['Village Road', 'Farm Road', 'Church Road', 'Stream Road'], h: [3, 5], walls: [2, 0], tint: 0xd2a679, ground: 'dirt', crowd: 0.3, stallP: 0.25, density: 0.5, small: true, rust: true, palm: true },
+  { name: 'Lagelu Village', kind: 'village', streets: ['Farm Road', 'Primary School Road', 'Market Square Road', 'Palm Road'], h: [3, 5], walls: [2, 0], tint: 0xcfa070, ground: 'grass', crowd: 0.3, stallP: 0.3, density: 0.5, small: true, rust: true, palm: true },
+  { name: 'Ido Village', kind: 'village', streets: ['Village Road', 'Mosque Road', 'Cocoa Farm Road', 'River Road'], h: [3, 5], walls: [0, 2], tint: 0xd8b080, ground: 'dirt', crowd: 0.3, stallP: 0.25, density: 0.45, small: true, rust: true, palm: true }
 ];
-const ND = DISTRICTS.length;
-const distAtTile = (ci, cj) => DISTRICTS[(((Math.floor(ci / 3) * 2 + Math.floor(cj / 3) * 3) % ND) + ND) % ND];
+const byKind = k => DISTRICTS.filter(d => d.kind === k);
+const CITY = byKind('city'), TOWN = byKind('town'), VILLAGE = byKind('village');
+function distAtTile(ci, cj) { // city in the middle, towns and villages further out
+  const cx = Math.floor(ci / 4), cy = Math.floor(cj / 4);
+  if (cx === 0 && cy === 0) return CITY[0];
+  const ring = Math.max(Math.abs(cx), Math.abs(cy)), h = hash(cx + 101, cy + 57), r = (h % 100) / 100;
+  const L = ring <= 1 ? CITY : ring === 2 ? (r < 0.4 ? CITY : r < 0.8 ? TOWN : VILLAGE) : (r < 0.5 ? VILLAGE : TOWN);
+  return L[h % L.length];
+}
 const distAt = (x, z) => distAtTile(Math.floor(x / B), Math.floor(z / B));
 const roadName = (axis, idx, st) => { const L = st.streets.length; return st.streets[(((idx + (axis === 'x' ? 1 : 0)) % L) + L) % L]; };
+const kindTag = st => st.kind === 'city' ? ', Ibadan' : st.kind === 'town' ? ' (town)' : ' (village)';
 const SITE_NAMES = ['Naija Oil', 'Oyo Petrol', 'Ibadan Fuels', 'Oluyole Gas', 'Unity Oil'];
+
+// traffic lights are rare: ~1 in 5 city junctions, ~1 in 9 town junctions, none in villages
+function signalAt(ci, cj) {
+  const k = distAtTile(ci, cj).kind, m = k === 'city' ? 5 : k === 'town' ? 9 : 0;
+  return m > 0 && !(ci === 0 && cj === 0) && hash(ci * 3 + 1, cj * 7 + 2) % m === 0;
+}
+// railway: a north-south line through the middle of every 5th block column
+const railAt = ci => Math.abs(ci) % 5 === 2;
 
 const CARS = {
   cab: { name: 'Ibadan Cab', type: 'taxi', price: 0, maxV: 52, acc: 24, tank: 30, burn: 1, fare: 1 },
   hatch: { name: 'City Hatch', type: 'hatch', price: 60000, maxV: 48, acc: 22, tank: 28, burn: 0.7, fare: 0.9 },
-  sedan: { name: 'Comfort Sedan', type: 'sedan', price: 150000, maxV: 56, acc: 27, tank: 35, burn: 0.85, fare: 1.15 },
-  suv: { name: 'Executive SUV', type: 'suv', price: 400000, maxV: 54, acc: 25, tank: 55, burn: 1.3, fare: 1.5 },
+  sedan: { name: 'Comfort Sedan', type: 'sedan', price: 15000, maxV: 56, acc: 27, tank: 35, burn: 0.85, fare: 1.15 },
+  suv: { name: 'Executive SUV', type: 'suv', price: 40000, maxV: 54, acc: 25, tank: 55, burn: 1.3, fare: 1.5 },
   sports: { name: 'Sport Coupe', type: 'sports', price: 900000, maxV: 70, acc: 34, tank: 40, burn: 1.6, fare: 1.8 }
 };
 const PAINTS = [['Yellow', 0xf5c518], ['Black', 0x15171a], ['White', 0xf1f1f1], ['Red', 0xd7192d],
@@ -98,7 +124,7 @@ const WX = {
 const WX_KEYS = Object.keys(WX);
 
 const SAVE_KEY = 'sl-racer-taxi-v1';
-const S = { ngn: 5000, usd: 0, fuel: 18, car: 'cab', color: 0xf5c518, owned: { cab: 1 }, damage: 0, rides: 0, stars: 5, history: [] };
+const S = { ngn: 500000, usd: 1500000, fuel: 18, car: 'cab', color: 0xf5c518, owned: { cab: 1 }, damage: 0, rides: 0, stars: 5, history: [] };
 try { Object.assign(S, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch {}
 if (!CARS[S.car]) S.car = 'cab';
 if (!Array.isArray(S.history)) S.history = [];
@@ -200,6 +226,7 @@ const layerAll = o => { o.traverse(c => c.layers.set(1)); return o; };
 /* ================= VEHICLES ================= */
 const wheelGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.26, 18).rotateZ(Math.PI / 2);
 const hubGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.28, 12).rotateZ(Math.PI / 2);
+const bikeWheelGeo = new THREE.TorusGeometry(0.36, 0.03, 6, 18).rotateY(Math.PI / 2);
 const plateGeo = new THREE.PlaneGeometry(0.5, 0.12);
 const archGeo = new THREE.TorusGeometry(0.47, 0.05, 6, 14, Math.PI).rotateY(Math.PI / 2);
 const pipeGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.25, 8).rotateX(Math.PI / 2);
@@ -218,17 +245,19 @@ const plateMats = Array.from({ length: 6 }, () => {
 });
 const SPECS = {
   sports: [1.9, 4.3, 0.45, 0.42, 0.4], sedan: [1.8, 4.5, 0.55, 0.5, 0.45], taxi: [1.8, 4.5, 0.55, 0.5, 0.45],
-  police: [1.85, 4.6, 0.55, 0.5, 0.45], suv: [1.95, 4.7, 0.8, 0.7, 0.6], hatch: [1.75, 3.9, 0.55, 0.55, 0.55]
+  police: [1.85, 4.6, 0.55, 0.5, 0.45], suv: [1.95, 4.7, 0.8, 0.7, 0.6], hatch: [1.75, 3.9, 0.55, 0.55, 0.55],
+  wagon: [1.75, 4.8, 0.6, 0.62, 0.8]
 };
 
 function makeVehicle(type, color) {
   const g = new THREE.Group(), tails = [], wheels = [], sigL = [], sigR = [], flash = [];
+  let riderLegs = null;
   const paint = mat(color, 0.3, 0.45);
   const add = (geo, m, x, y, z, sh = false) => {
     const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = sh; g.add(o); return o;
   };
   const box = (w, h, l) => new THREE.BoxGeometry(w, h, l);
-  let w, l, wz, bh = 0, topY = 0;
+  let w, l, wz, bh = 0, topY = 0, noLights = false, customWheels = false;
   const P = { my: 1.3, mz: -0.5, ms: 1, ly: 0.85, fz: 0, rz: 0, py: 0.5 };
 
   if (type === 'truck') {
@@ -248,11 +277,39 @@ function makeVehicle(type, color) {
       for (const z of [-1.5, 0, 1.5, 3, 4.5]) add(box(0.04, 0.08, 0.2), amber(), s * 1.26, 0.95, z);
     }
     for (const x of [-0.6, 0, 0.6]) add(box(0.03, 2.6, 0.03), darkMat, x, 2.3, 4.84);
-  } else if (type === 'bus') { // yellow "danfo"
+  } else if (type === 'trailer') { // articulated lorry: container or tanker
+    w = 2.5; l = 16; wz = [-6.4, -4.7, 4.5, 5.9];
+    Object.assign(P, { my: 2.7, mz: -6.4, ms: 1.8, ly: 1.0, fz: -8, rz: 8, py: 0.9 });
+    add(box(2.4, 2.5, 2.4), paint, 0, 1.95, -6.8, true);
+    add(box(2.3, 1.0, 0.1), glassMat, 0, 2.45, -8.02);
+    add(box(1.5, 0.8, 0.06), darkMat, 0, 1.2, -8.04);
+    add(box(2.4, 0.35, 0.3), chromeMat, 0, 0.6, -8.1);
+    add(box(2.2, 0.5, 13.6), darkMat, 0, 0.75, 1.2, true);
+    add(new THREE.CylinderGeometry(0.1, 0.1, 2.8, 8), chromeMat, 1.3, 3.0, -5.6);
+    if (Math.random() < 0.55) {
+      add(box(2.5, 2.7, 12), mat(pick([0xb91c1c, 0x1d4ed8, 0x15803d, 0xd97706]), 0.6), 0, 2.4, 2.0, true);
+      for (let k = -5; k <= 5; k++) add(box(2.54, 2.6, 0.08), darkMat, 0, 2.4, 2.0 + k * 1.05);
+    } else {
+      add(new THREE.CylinderGeometry(1.2, 1.2, 11.6, 16).rotateX(Math.PI / 2), mat(0xcfd3d8, 0.35, 0.7), 0, 2.15, 2.2, true);
+      add(box(0.7, 0.25, 0.7), chromeMat, 0, 3.4, 0.6);
+      for (const z of [-2.5, 2, 6.5]) add(box(2.46, 0.12, 0.2), darkMat, 0, 2.15, z);
+    }
+    for (const s of [-1, 1]) for (const z of [-1, 2, 5, 7.5]) add(box(0.04, 0.08, 0.2), amber(), s * 1.26, 1.0, z);
+  } else if (type === 'tipper') { // dump truck
+    w = 2.4; l = 8; wz = [-2.6, 1.4, 2.9];
+    Object.assign(P, { my: 2.4, mz: -2.9, ms: 1.6, ly: 0.95, fz: -4, rz: 4, py: 0.8 });
+    add(box(2.2, 2.2, 2.0), paint, 0, 1.8, -2.9, true);
+    add(box(2.1, 0.9, 0.08), glassMat, 0, 2.2, -3.93);
+    add(box(2.3, 0.4, 7.6), darkMat, 0, 0.7, 0, true);
+    const bed = add(box(2.4, 1.3, 4.8), mat(0xc7c7c0, 0.7, 0.3), 0, 1.75, 1.4, true); bed.rotation.x = 0.05;
+    add(new THREE.ConeGeometry(1.3, 0.9, 6), mat(0xb58b4a, 1), 0, 2.85, 1.4);
+    add(box(2.4, 0.35, 0.3), chromeMat, 0, 0.6, -4.05);
+  } else if (type === 'bus' || type === 'coach') { // yellow "danfo" or long-distance coach
+    const coach = type === 'coach';
     w = 2.6; l = 11; wz = [-3.6, 3.3];
     Object.assign(P, { my: 2.6, mz: -5.3, ms: 1.8, ly: 1.0, fz: -5.5, rz: 5.5, py: 0.9 });
     add(box(2.6, 2.7, 11), paint, 0, 1.8, 0, true);
-    add(box(2.62, 0.3, 10.2), mat(0x111111, 0.6), 0, 1.3, 0);
+    add(box(2.62, 0.3, 10.2), mat(coach ? 0x1f8a4c : 0x111111, 0.6), 0, 1.3, 0);
     add(box(2.64, 0.9, 10), glassMat, 0, 2.4, 0);
     add(box(2.4, 1.1, 0.04), glassMat, 0, 2.45, -5.51);
     add(box(1.8, 0.3, 0.04), lampMat, 0, 3.0, -5.52);
@@ -260,15 +317,18 @@ function makeVehicle(type, color) {
     for (let k = -4; k <= 4; k++) for (const s of [-1, 1]) add(box(0.04, 0.9, 0.08), darkMat, s * 1.32, 2.4, k * 1.1);
     for (const z of [-4.1, -0.6]) add(box(0.05, 2, 1.1), glassMat, 1.31, 1.6, z);
     add(box(2.6, 0.3, 0.2), chromeMat, 0, 0.55, -5.6);
-  } else if (type === 'minibus') { // Hiace-style "korope"
+    if (!coach) add(box(2.0, 0.5, 2.4), mat(pick(CLOTH), 0.9), 0, 3.35, -1.5); // load on the roof
+  } else if (type === 'minibus' || type === 'van') { // Hiace-style "korope" / cargo van
+    const van = type === 'van';
     w = 1.9; l = 5.4; wz = [-1.7, 1.7]; topY = 2.2;
     Object.assign(P, { my: 1.7, mz: -2.0, ms: 1.2, ly: 0.9, fz: -2.7, rz: 2.7, py: 0.6 });
     add(box(1.9, 1.6, 5.4), paint, 0, 1.25, 0, true);
     add(box(1.92, 0.22, 5.2), mat(0x111111, 0.6), 0, 0.85, 0);
-    add(box(1.92, 0.6, 4.2), glassMat, 0, 1.75, 0.45);
+    if (!van) add(box(1.92, 0.6, 4.2), glassMat, 0, 1.75, 0.45);
     add(box(1.7, 0.7, 0.06), glassMat, 0, 1.7, -2.71);
     add(box(1.5, 0.08, 3), chromeMat, 0, 2.08, 0.6);
     for (const s of [-1, 1]) add(box(0.03, 1.1, 0.03), darkMat, s * 0.96, 1.25, 0.1);
+    if (van) add(box(1.4, 0.4, 0.05), textSign('DELIVERY', '#1f4e8c').clone ? mat(0x1f4e8c, 0.6) : paint, 0, 1.4, 2.71);
   } else if (type === 'pickup') {
     w = 1.95; l = 5.2; wz = [-1.6, 1.6]; topY = 1.97;
     Object.assign(P, { my: 1.5, mz: -0.95, ms: 1, ly: 0.95, fz: -2.6, rz: 2.6, py: 0.6 });
@@ -278,6 +338,7 @@ function makeVehicle(type, color) {
     for (const s of [-1, 1]) add(box(0.1, 0.5, 2.5), paint, s * (w / 2 - 0.05), 1.45, 1.35);
     add(box(w, 0.5, 0.1), paint, 0, 1.45, 2.55);
     add(box(w - 0.1, 0.14, 0.2), chromeMat, 0, 0.55, -2.6);
+    if (Math.random() < 0.6) { add(box(1.5, 0.7, 2.0), mat(pick(CLOTH), 0.9), 0, 1.55, 1.3); add(box(1.0, 0.5, 1.0), mat(0x8a6a44), 0, 2.1, 1.2); } // load
   } else if (type === 'keke') { // tricycle
     w = 1.35; l = 2.8; wz = [0]; topY = 1.9;
     Object.assign(P, { my: 1.35, mz: -0.75, ms: 0.8, ly: 0.8, fz: -1.4, rz: 1.4, py: 0.5 });
@@ -295,11 +356,27 @@ function makeVehicle(type, color) {
     add(box(0.34, 0.14, 0.95), darkMat, 0, 0.95, 0.5);
     add(box(0.8, 0.05, 0.05), chromeMat, 0, 1.2, -0.62);
     add(box(0.1, 0.5, 0.1), chromeMat, 0, 0.9, -0.7);
-    for (let k = 0; k < (Math.random() < 0.5 ? 2 : 1); k++) {
+    const nr = Math.random() < 0.5 ? 2 : 1;
+    for (let k = 0; k < nr; k++) {
       const r = makePerson(Math.random() < 0.8 ? 'M' : 'F', irand(0, 1)); dressPerson(r);
       r.position.set(0, 0.2, 0.05 + k * 0.55); r.scale.setScalar(0.88);
       r.userData.legs.forEach(lg => lg.rotation.x = 1.15); r.userData.arms.forEach(a => a.rotation.x = k ? 0.3 : 1.0);
       g.add(r);
+    }
+    if (nr === 1 && Math.random() < 0.35) add(box(0.5, 0.5, 0.6), mat(pick(CLOTH), 0.9), 0, 1.2, 0.95); // cargo
+  } else if (type === 'bicycle') {
+    w = 0.6; l = 1.8; wz = [-0.7, 0.7]; topY = 1.9; noLights = true; customWheels = true;
+    const fr = mat(color, 0.4, 0.6);
+    add(box(0.05, 0.05, 1.2), fr, 0, 0.72, 0); add(box(0.05, 0.55, 0.05), fr, 0, 0.5, -0.4); add(box(0.05, 0.7, 0.05), fr, 0, 0.5, 0.35);
+    add(box(0.5, 0.04, 0.04), chromeMat, 0, 1.0, -0.6); add(box(0.05, 0.35, 0.05), chromeMat, 0, 0.82, -0.6);
+    add(box(0.12, 0.05, 0.25), darkMat, 0, 0.95, 0.45);
+    if (Math.random() < 0.45) add(box(0.5, 0.4, 0.5), mat(pick([0x8a6a44, 0xc08a3a]), 0.9), 0, 1.1, 0.8); // load on carrier
+    const r = makePerson(Math.random() < 0.8 ? 'M' : 'F', irand(0, 1)); dressPerson(r);
+    r.position.set(0, 0.22, 0.2); r.scale.setScalar(0.9); r.userData.arms.forEach(a => a.rotation.x = 0.9); riderLegs = r.userData.legs; g.add(r);
+    for (const z of [-0.7, 0.7]) {
+      const pivot = new THREE.Group(), spin = new THREE.Group(); pivot.position.set(0, 0.38, z);
+      spin.add(new THREE.Mesh(bikeWheelGeo, darkMat), new THREE.Mesh(box(0.02, 0.68, 0.02), chromeMat), new THREE.Mesh(box(0.02, 0.02, 0.68), chromeMat));
+      pivot.add(spin); g.add(pivot); wheels.push({ pivot, spin, front: z < 0 });
     }
   } else {
     const [sw, sl, b, ch, cr] = SPECS[type];
@@ -331,6 +408,10 @@ function makeVehicle(type, color) {
       for (const s of [-1, 1]) add(box(0.05, 0.05, l * 0.45), chromeMat, s * (w / 2 - 0.3), topY + 0.05, l * 0.05);
       for (const z of [-0.5, 0.7]) add(box(w - 0.5, 0.04, 0.05), chromeMat, 0, topY + 0.08, z);
       add(new THREE.CylinderGeometry(0.01, 0.01, 0.6, 5), darkMat, 0.5, topY + 0.3, l * 0.3);
+    } else if (type === 'wagon') { // old estate "bush taxi" loaded on the roof
+      add(box(w - 0.2, 0.05, l * 0.7), chromeMat, 0, topY + 0.04, l * 0.1);
+      add(box(1.3, 0.5, 1.8), mat(pick(CLOTH), 0.9), 0, topY + 0.32, l * 0.1);
+      if (Math.random() < 0.6) add(box(0.9, 0.4, 0.9), mat(0x8a6a44), 0, topY + 0.78, l * 0.1 - 0.2);
     } else if (type === 'taxi') {
       add(box(0.5, 0.15, 0.25), lampMat, 0, topY + 0.08, l * 0.05);
       for (const s of [-1, 1]) add(box(0.012, 0.06, l * 0.8), darkMat, s * (w / 2 + 0.007), 0.82, 0);
@@ -346,7 +427,7 @@ function makeVehicle(type, color) {
     }
   }
 
-  const WP = type === 'keke' ? [[0, -1.0], [-0.62, 0.8], [0.62, 0.8]] : type === 'okada' ? [[0, -0.75], [0, 0.75]]
+  const WP = customWheels ? [] : type === 'keke' ? [[0, -1.0], [-0.62, 0.8], [0.62, 0.8]] : type === 'okada' ? [[0, -0.75], [0, 0.75]]
     : [-(w / 2 - 0.05), w / 2 - 0.05].flatMap(x => wz.map(z => [x, z]));
   const minZ = Math.min(...WP.map(p => p[1]));
   for (const [x, z] of WP) {
@@ -355,21 +436,23 @@ function makeVehicle(type, color) {
     const tire = new THREE.Mesh(wheelGeo, tireMat); tire.castShadow = true;
     spin.add(tire, new THREE.Mesh(hubGeo, rimMat)); pivot.add(spin); g.add(pivot);
     wheels.push({ pivot, spin, front: z === minZ });
-    if (!['truck', 'bus', 'keke', 'okada'].includes(type)) add(archGeo, darkMat, Math.sign(x) * (w / 2), 0.38, z);
+    if (!['truck', 'bus', 'coach', 'keke', 'okada', 'trailer', 'tipper'].includes(type)) add(archGeo, darkMat, Math.sign(x) * (w / 2), 0.38, z);
   }
-  for (const s of [-1, 1]) {
-    add(box(0.12 * P.ms, 0.084 * P.ms, 0.06 * P.ms), paint, s * (w / 2 + 0.1 * P.ms), P.my, P.mz);
-    add(box(0.4, 0.15, 0.08), headMat, s * w * 0.32, P.ly, P.fz - 0.02);
-    const tm = new THREE.MeshStandardMaterial({ color: 0x701010, emissive: 0xff1010, emissiveIntensity: 0.5 });
-    add(box(0.42, 0.15, 0.08), tm, s * w * 0.32, P.ly, P.rz + 0.02); tails.push(tm);
-    for (const [z, d] of [[P.fz, -0.03], [P.rz, 0.03]]) {
-      const a = amber(); add(box(0.2, 0.1, 0.06), a, s * (w / 2 - 0.2), P.ly - 0.15, z + d); (s < 0 ? sigL : sigR).push(a);
+  if (!noLights) {
+    for (const s of [-1, 1]) {
+      add(box(0.12 * P.ms, 0.084 * P.ms, 0.06 * P.ms), paint, s * (w / 2 + 0.1 * P.ms), P.my, P.mz);
+      add(box(0.4, 0.15, 0.08), headMat, s * w * 0.32, P.ly, P.fz - 0.02);
+      const tm = new THREE.MeshStandardMaterial({ color: 0x701010, emissive: 0xff1010, emissiveIntensity: 0.5 });
+      add(box(0.42, 0.15, 0.08), tm, s * w * 0.32, P.ly, P.rz + 0.02); tails.push(tm);
+      for (const [z, d] of [[P.fz, -0.03], [P.rz, 0.03]]) {
+        const a = amber(); add(box(0.2, 0.1, 0.06), a, s * (w / 2 - 0.2), P.ly - 0.15, z + d); (s < 0 ? sigL : sigR).push(a);
+      }
     }
+    const pm = pick(plateMats);
+    add(plateGeo, pm, 0, P.py, P.fz - 0.12).rotation.y = Math.PI;
+    add(plateGeo, pm, 0, P.py, P.rz + 0.12);
   }
-  const pm = pick(plateMats);
-  add(plateGeo, pm, 0, P.py, P.fz - 0.12).rotation.y = Math.PI;
-  add(plateGeo, pm, 0, P.py, P.rz + 0.12);
-  g.userData = { w, l, topY, tails, wheels, sigL, sigR, flash };
+  g.userData = { w, l, topY, tails, wheels, sigL, sigR, flash, riderLegs };
   return layerAll(g);
 }
 
@@ -428,6 +511,11 @@ const tableGeo = new THREE.BoxGeometry(1.8, 0.8, 1), umbGeo = new THREE.ConeGeom
 const lampZ = new THREE.MeshBasicMaterial({ color: 0xff2a2a }), lampX = new THREE.MeshBasicMaterial({ color: 0x2dff6b });
 const cocoaTex = winTexes[3].clone(); cocoaTex.needsUpdate = true; cocoaTex.repeat.set(3, 10);
 const cocoaMat = new THREE.MeshStandardMaterial({ map: cocoaTex, roughness: 0.7 }), cocoaSign = textSign('COCOA HOUSE', '#1f4e8c', '#fff', 384, 72);
+// railway parts
+const ballastGeo = bx(4.4, 0.2, 160), sleeperGeo = new THREE.PlaneGeometry(3.4, 160).rotateX(-Math.PI / 2), railGeo = bx(0.12, 0.16, 160);
+const gPostGeo = bx(0.25, 1.6, 0.25), gArmGeo = bx(0.14, 0.14, 9.2), lampBallGeo = new THREE.SphereGeometry(0.2, 8, 6);
+const ballastMat = mat(0x7a7468, 1), railMat = mat(0xa7adb3, 0.4, 0.8), gateArmMat = mat(0xd7192d, 0.5), gateLampMat = new THREE.MeshBasicMaterial({ color: 0x2a0505 });
+const sleeperMat = new THREE.MeshStandardMaterial({ roughness: 1, map: canvasTex(64, 64, (g, w, h) => { g.fillStyle = '#6b5a46'; g.fillRect(0, 0, w, h); g.fillStyle = '#2f2519'; g.fillRect(0, 22, w, 20); }, 1, 80) });
 
 function makeTree() {
   const t = new THREE.Group();
@@ -461,7 +549,7 @@ function makeLandmarks() { // stylised, inspired by Ibadan icons
   return L;
 }
 function makeTile() {
-  const g = new THREE.Group(), U = { bld: [], trees: [], stalls: [] };
+  const g = new THREE.Group(), U = { bld: [], trees: [], stalls: [], heads: [], gates: [], rail: false };
   const add = (geo, m, x, y, z, deco) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); if (deco) o.layers.set(1); g.add(o); return o; };
   add(interGeo, interMat, 0, 0.03, 0).receiveShadow = true;
   add(segGeo, roadMat, 0, 0, 80).receiveShadow = true;
@@ -487,8 +575,20 @@ function makeTile() {
     const p = new THREE.Mesh(sigPoleGeo, poleMat); p.position.y = 3;
     const hb = new THREE.Mesh(headBoxGeo, darkMat); hb.position.y = 5.5;
     const d = new THREE.Mesh(dotGeo, lm); d.position.set(0, 5.5, 0.25);
-    h.add(p, hb, d); layerAll(h); g.add(h);
+    h.add(p, hb, d); layerAll(h); g.add(h); U.heads.push(h);
   }
+  // railway line (north-south through the middle of the block) + crossing gates on the east-west road
+  const railG = new THREE.Group(); railG.position.set(80, 0, 0); railG.visible = false;
+  const rm = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.receiveShadow = true; railG.add(o); return o; };
+  rm(ballastGeo, ballastMat, 0, 0.1, 0); rm(sleeperGeo, sleeperMat, 0, 0.215, 0); rm(railGeo, railMat, -0.72, 0.3, 0); rm(railGeo, railMat, 0.72, 0.3, 0);
+  for (const [x, z, sgn] of [[-5.5, 9.4, 1], [5.5, -9.4, -1]]) {
+    rm(gPostGeo, poleMat, x, 0.8, z);
+    const pivot = new THREE.Group(); pivot.position.set(x, 1.3, z);
+    const arm = new THREE.Mesh(gArmGeo, gateArmMat); arm.position.z = -sgn * 4.6; pivot.add(arm); railG.add(pivot);
+    rm(lampBallGeo, gateLampMat, x, 1.85, z);
+    U.gates.push({ pivot, sgn, ang: sgn * 1.25 });
+  }
+  g.add(railG); U.railG = railG;
   U.lm = makeLandmarks(); Object.values(U.lm).forEach(o => g.add(o));
   g.userData = U; scene.add(g); return g;
 }
@@ -498,15 +598,24 @@ function assignTile(t, ci, cj) {
   U.sites = { fuel: (ci === 0 && cj === 0) || hs % 9 === 3, gar: (ci === 1 && cj === 0) || hs % 23 === 7, cp: hs % 7 === 5 && !(ci === 0 && cj === 0) };
   if (U.sites.gar) U.sites.fuel = false;
   const busy = U.sites.fuel || U.sites.gar;
-  const lmOn = st.lm && ((ci === 0 && cj === 0) || hs % 3 === 0), lmType = lmOn ? (Array.isArray(st.lm) ? st.lm[hs % st.lm.length] : st.lm) : null;
+  // traffic signals are rare
+  const sig = signalAt(ci, cj); U.heads.forEach(h => h.visible = sig);
+  // railway
+  U.rail = railAt(ci); U.railG.visible = U.rail; U.gates.forEach(gt => { gt.ang = gt.sgn * 1.25; gt.pivot.rotation.x = gt.ang; });
+  const lmOn = st.lm && !U.rail && ((ci === 0 && cj === 0) || hs % 3 === 0), lmType = lmOn ? (Array.isArray(st.lm) ? st.lm[hs % st.lm.length] : st.lm) : null;
   for (const k in U.lm) U.lm[k].visible = k === lmType;
+  const small = !!st.small, dens = st.density ?? 1;
   U.bld.forEach((o, q) => {
-    const east = q & 1, south = q >> 1, w = rr(36, 52), d = rr(36, 52), h = rr(st.h[0], st.h[1]);
-    const cx = east ? 146 - w / 2 : 14 + w / 2, cz = south ? 146 - d / 2 : 14 + d / 2;
+    const east = q & 1, south = q >> 1;
+    let w, d, h, cx, cz;
+    if (small) { w = rr(7, 13); d = rr(7, 13); h = rr(3, 5); cx = east ? rr(96, 138) : rr(24, 64); cz = south ? rr(96, 138) : rr(24, 64); }
+    else { w = rr(36, 52); d = rr(36, 52); h = rr(st.h[0], st.h[1]); cx = east ? 146 - w / 2 : 14 + w / 2; cz = south ? 146 - d / 2 : 14 + d / 2; }
+    const show = R() < dens && !(lmType && !small);
+    o.b.visible = show; o.par.visible = show && !small; o.ac.visible = show && !small; o.awn.visible = o.sign.visible = show && !small;
     o.b.scale.set(w, h, d); o.b.position.set(cx, h / 2 + 0.2, cz);
     o.b.material[2] = st.rust ? rustMat : roofMat;
     o.m.color.setHex(st.tint); o.m.map.image = winTexes[st.walls[Math.floor(R() * st.walls.length)]].image;
-    o.m.map.needsUpdate = true; o.m.map.repeat.set(Math.max(w, d) / 12, h / 12);
+    o.m.map.needsUpdate = true; o.m.map.repeat.set(Math.max(w, d) / 12, Math.max(h, 3) / 12);
     o.par.scale.set(w + 0.5, 0.9, d + 0.5); o.par.position.set(cx, h + 0.65, cz); o.par.material = st.rust ? rustMat : roofMat;
     o.ac.scale.set(rr(2, 4), 1.4, rr(2, 4)); o.ac.position.set(cx + rr(-w / 4, w / 4), h + 1.6, cz + rr(-d / 4, d / 4));
     const sg = east ? 1 : -1, fx = east ? cx + w / 2 : cx - w / 2;
@@ -515,7 +624,7 @@ function assignTile(t, ci, cj) {
   });
   U.trees.forEach((tr, n) => {
     const street = n < 3, x = street ? (R() < 0.5 ? rr(9.5, 12) : 160 - rr(9.5, 12)) : 80 + rr(-20, 20), z = street ? rr(14, 146) : 80 + rr(-14, 14);
-    tr.visible = !(busy && Math.abs(z - 80) < 14 && (x < 26 || x > 134)) && !(lmType && !street);
+    tr.visible = !(busy && Math.abs(z - 80) < 14 && (x < 26 || x > 134)) && !(lmType && !street) && !(U.rail && !street && Math.abs(x - 80) < 6);
     tr.position.set(x, 0.2, z); tr.scale.setScalar(rr(0.8, 1.3));
     const [trunk, lf] = tr.children;
     if (st.palm) { trunk.scale.y = 2; trunk.position.y = 2.2; lf.position.y = 4.9; lf.scale.set(1.5, 0.4, 1.5); }
@@ -540,7 +649,7 @@ function updateTiles() {
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), GROUND.dirt);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
-/* ---------- traffic lights ---------- */
+/* ---------- traffic lights (cycle shared, but only some junctions have signals) ---------- */
 function lightFor(axis) {
   const T = state.time % 30, s = axis === 'z' ? 0 : 15;
   if (T >= s && T < s + 12) return 'green';
@@ -548,6 +657,12 @@ function lightFor(axis) {
   return 'red';
 }
 const LC = { green: 0x2dff6b, yellow: 0xffcc00, red: 0xff2a2a };
+function signalAhead() { // state of the signal in front of the player (within 160 m), or null
+  const fx = -Math.sin(state.heading), fz = -Math.cos(state.heading), alongZ = Math.abs(fz) >= Math.abs(fx), dir = Math.sign(alongZ ? fz : fx) || 1, P = car.position;
+  const pos = alongZ ? P.z : P.x, n = dir > 0 ? Math.ceil(pos / B) : Math.floor(pos / B);
+  const ci = alongZ ? Math.round(P.x / B) : n, cj = alongZ ? n : Math.round(P.z / B);
+  return Math.abs(pos - n * B) < 160 && signalAt(ci, cj) ? lightFor(alongZ ? 'z' : 'x') : null;
+}
 
 /* ================= FUEL / GARAGE / CHECKPOINT (pooled) ================= */
 function makeFuelStation() {
@@ -644,33 +759,94 @@ setCar(S.car, S.color);
 /* ================= TRAFFIC (grid) ================= */
 const traffic = [];
 const COLORS = [0x2f5fa8, 0xeeeeee, 0x222222, 0x8c8f94, 0x2e8b57, 0x7a2a8a, 0xb5651d];
-const TYPES = ['taxi', 'taxi', 'taxi', 'sedan', 'hatch', 'hatch', 'suv', 'pickup', 'minibus', 'minibus', 'bus', 'keke', 'keke', 'okada', 'okada', 'okada', 'truck', 'police'];
+// what you see depends on where you are: city = taxis, danfo, keke, okada; town = more bikes and keke; village = bicycles, okada, pickups, wagons
+const KINDS = {
+  city: { tr: 1, mix: ['taxi', 'taxi', 'taxi', 'sedan', 'hatch', 'hatch', 'suv', 'wagon', 'wagon', 'minibus', 'minibus', 'bus', 'bus', 'coach', 'keke', 'keke', 'keke', 'okada', 'okada', 'okada', 'okada', 'bicycle', 'pickup', 'van', 'truck', 'tipper', 'trailer', 'police'] },
+  town: { tr: 0.8, mix: ['taxi', 'wagon', 'wagon', 'hatch', 'sedan', 'minibus', 'minibus', 'keke', 'keke', 'keke', 'keke', 'okada', 'okada', 'okada', 'okada', 'okada', 'bicycle', 'bicycle', 'pickup', 'tipper', 'truck', 'trailer', 'bus', 'coach'] },
+  village: { tr: 0.5, mix: ['bicycle', 'bicycle', 'bicycle', 'bicycle', 'okada', 'okada', 'okada', 'keke', 'keke', 'wagon', 'wagon', 'pickup', 'pickup', 'minibus', 'tipper', 'trailer'] }
+};
+const SPD = { bicycle: [3, 5], okada: [12, 24], keke: [8, 15], trailer: [8, 14], tipper: [8, 14], truck: [8, 14], bus: [9, 16], coach: [12, 20], minibus: [10, 18], wagon: [9, 18], pickup: [10, 20], van: [10, 18] };
+function colorFor(type) {
+  if (['taxi', 'minibus', 'bus'].includes(type)) return 0xf5c518;
+  if (type === 'keke') return pick([0xf5c518, 0xf5c518, 0x1f8a4c, 0xd7192d]);
+  if (type === 'police') return 0x15171a;
+  if (type === 'coach') return 0xf2f2f2;
+  if (type === 'tipper') return 0xe0a020;
+  if (type === 'trailer') return pick([0xb91c1c, 0x1d4ed8, 0x15803d, 0x6b7280]);
+  if (type === 'bicycle' || type === 'okada') return pick([0x1f5fbf, 0xd7192d, 0x222222, 0x1f8a4c, 0xe67e22]);
+  if (type === 'wagon') return pick([0xeeeeee, 0xb5651d, 0x2f5fa8, 0xc9c4a8]);
+  if (type === 'van') return 0xf1f1f1;
+  return pick(COLORS);
+}
+const vehPool = {};
+function setKind(t, type) {
+  if (t.kind === type) return;
+  if (t.mesh) { scene.remove(t.mesh); (vehPool[t.kind] || (vehPool[t.kind] = [])).push(t.mesh); }
+  let m = (vehPool[type] || (vehPool[type] = [])).pop();
+  if (!m) { m = makeVehicle(type, colorFor(type)); skinVehicle(m, type, false); }
+  scene.add(m); t.mesh = m; t.kind = type; t.w = m.userData.w; t.l = m.userData.l;
+}
 function placeTraffic(t) {
   const axis = Math.random() < 0.5 ? 'z' : 'x', dir = Math.random() < 0.5 ? 1 : -1;
   const off = (Math.random() < 0.5 ? 2 : 6) * dir * (axis === 'z' ? -1 : 1);
   const P = car.position, line = Math.round((axis === 'z' ? P.x : P.z) / B) + irand(-1, 1), c = line * B + off;
-  const along = axis === 'z' ? P.z : P.x; let s = along + 150;
+  const along = axis === 'z' ? P.z : P.x; let s = along + rand(-300, 300);
+  const K = KINDS[distAt(axis === 'z' ? c : s, axis === 'z' ? s : c).kind];
+  setKind(t, pick(K.mix)); t.on = Math.random() < K.tr; t.off = rand(4, 10);
   for (let n = 0; n < 14; n++) {
     s = along + rand(-300, 300);
     if (Math.abs(s - along) < 70 || Math.abs(s - Math.round(s / B) * B) < 14) continue;
-    if (!traffic.some(o => o !== t && o.axis === axis && o.c === c && Math.abs(o.s - s) < (o.l + t.l) / 2 + 20)) break;
+    if (!traffic.some(o => o !== t && o.on && o.axis === axis && o.c === c && Math.abs(o.s - s) < (o.l + t.l) / 2 + 20)) break;
   }
-  Object.assign(t, { axis, dir, c, s, base: t.kind === 'okada' ? rand(12, 24) : rand(9, 22), hdg: axis === 'z' ? (dir < 0 ? 0 : Math.PI) : (dir > 0 ? -Math.PI / 2 : Math.PI / 2) });
-  t.speed = t.base; t.honkT = rand(3, 14); t.mesh.rotation.y = t.hdg;
+  const sp = SPD[t.kind] || [9, 22];
+  Object.assign(t, { axis, dir, c, s, base: rand(sp[0], sp[1]), hdg: axis === 'z' ? (dir < 0 ? 0 : Math.PI) : (dir > 0 ? -Math.PI / 2 : Math.PI / 2) });
+  t.speed = t.base; t.honkT = rand(3, 14); t.mesh.rotation.y = t.hdg; t.mesh.visible = t.on;
   t.mesh.position.set(axis === 'z' ? c : s, 0, axis === 'z' ? s : c);
 }
-for (let i = 0; i < 26; i++) {
-  const type = pick(TYPES);
-  const col = ['taxi', 'minibus', 'bus', 'keke'].includes(type) ? 0xf5c518 : type === 'police' ? 0x15171a : pick(COLORS);
-  const mesh = makeVehicle(type, col); skinVehicle(mesh, type, false);
-  scene.add(mesh); const t = { mesh, kind: type, w: mesh.userData.w, l: mesh.userData.l }; traffic.push(t); placeTraffic(t);
-}
+for (let i = 0; i < 30; i++) { const t = { mesh: null, kind: null, w: 0, l: 0, on: true, off: 0 }; traffic.push(t); placeTraffic(t); }
 const circ = (x, z, h, l, w) => {
-  const n = l > 6 ? 3 : 2, r = w / 2 + 0.1, fx = -Math.sin(h), fz = -Math.cos(h), out = [];
+  const n = Math.max(2, Math.ceil(l / (w * 1.5))), r = w / 2 + 0.1, fx = -Math.sin(h), fz = -Math.cos(h), out = [];
   for (let i = 0; i < n; i++) { const o = (i / (n - 1) - 0.5) * (l - w); out.push([x + fx * o, z + fz * o, r]); }
   return out;
 };
 const onRoad = (x, z) => Math.abs(x - Math.round(x / B) * B) < 7.4 || Math.abs(z - Math.round(z / B) * B) < 7.4;
+
+/* ================= TRAIN & AEROPLANE ================= */
+function makeTrain() {
+  const g = new THREE.Group(), N = 4, CL = 14, LL = 10, GAP = 0.6, len = LL + N * (CL + GAP);
+  const green = mat(0x1f6b3a, 0.5, 0.3), cream = mat(0xe9e2cf, 0.6);
+  const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+  const z0 = -len / 2;
+  add(bx(2.9, 3.3, LL), green, 0, 2.2, z0 + LL / 2); add(bx(2.92, 0.4, LL), cream, 0, 1.3, z0 + LL / 2);
+  add(bx(2.0, 0.9, 0.06), glassMat, 0, 3.0, z0 - 0.02); add(bx(0.6, 0.3, 0.1), headMat, 0, 1.6, z0 - 0.05);
+  for (const dz of [-3, 3]) add(bx(2.4, 0.7, 3), darkMat, 0, 0.55, z0 + LL / 2 + dz);
+  for (let i = 0; i < N; i++) {
+    const zc = z0 + LL + GAP + CL / 2 + i * (CL + GAP);
+    add(bx(2.9, 3.0, CL), cream, 0, 2.1, zc); add(bx(2.92, 0.8, CL - 1), glassMat, 0, 2.6, zc); add(bx(2.92, 0.3, CL), green, 0, 1.4, zc);
+    for (const dz of [-4.5, 4.5]) add(bx(2.4, 0.7, 3), darkMat, 0, 0.55, zc + dz);
+  }
+  g.userData.len = len; layerAll(g); g.visible = false; scene.add(g); return g;
+}
+const trainG = makeTrain();
+const train = { g: trainG, on: false, dir: 1, z: 0, railX: 0, speed: 30, len: trainG.userData.len, horned: false };
+let trainT = rand(15, 30);
+const gateDown = (rx, zc) => train.on && Math.abs(train.railX - rx) < 1 && Math.abs(train.z - zc) < train.len / 2 + 140;
+
+function makePlane() {
+  const g = new THREE.Group(), white = mat(0xf4f4f0, 0.4, 0.3), green = mat(0x1f8a4c, 0.5);
+  const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); g.add(o); return o; };
+  add(new THREE.CylinderGeometry(2, 2, 26, 14).rotateX(Math.PI / 2), white, 0, 0, 0);
+  add(new THREE.ConeGeometry(2, 5, 14).rotateX(-Math.PI / 2), white, 0, 0, -15.5);
+  add(new THREE.ConeGeometry(2, 7, 14).rotateX(Math.PI / 2), white, 0, 0.4, 16.5);
+  add(bx(36, 0.5, 6), white, 0, -0.6, 1); add(bx(0.5, 6, 4), green, 0, 3.8, 13.5); add(bx(11, 0.4, 3), white, 0, 1.2, 14);
+  add(new THREE.CylinderGeometry(2.05, 2.05, 2, 14).rotateX(Math.PI / 2), green, 0, 0, -6);
+  for (const s of [-1, 1]) add(new THREE.CylinderGeometry(0.9, 0.9, 4, 10).rotateX(Math.PI / 2), mat(0x9aa0a6, 0.4, 0.6), s * 7, -1.6, -0.5);
+  const lights = [new THREE.MeshBasicMaterial({ color: 0xff2020 }), new THREE.MeshBasicMaterial({ color: 0x00ff66 })];
+  add(bx(0.5, 0.4, 0.8), lights[0], -18, -0.4, 1.5); add(bx(0.5, 0.4, 0.8), lights[1], 18, -0.4, 1.5);
+  g.userData.lights = lights; layerAll(g); g.visible = false; scene.add(g); return g;
+}
+const plane = { g: makePlane(), on: false, v: new THREE.Vector3() };
+let planeT = rand(25, 50);
 
 /* ================= STATE ================= */
 const state = {
@@ -678,7 +854,7 @@ const state = {
   thr: 0, heading: 0, crashes: 0, cooldown: 0, lightCd: 0, shake: 0, time: 0, tod: 8, st: '', lowFuel: false, dead: false
 };
 const clock = new THREE.Clock();
-let hazard = false, wxKey = 'clear', wxTimer = rand(70, 110), bolt = 8, flashV = 0, camIdx = 0, hudT = 0, navT = 0, siteT = 0, ringT = 0, mapBig = false, voiceOn = true, lastBlink = false;
+let hazard = false, wxKey = 'clear', wxTimer = rand(70, 110), bolt = 8, flashV = 0, camIdx = 0, lastOuter = 0, hudT = 0, navT = 0, siteT = 0, ringT = 0, mapBig = false, voiceOn = true, lastBlink = false, bellOn = false;
 const wx = { ...WX.clear };
 
 /* ================= HUD ================= */
@@ -686,7 +862,7 @@ const hud = document.createElement('div');
 hud.id = 'hud';
 hud.innerHTML = `
   <div class="flash" id="flash"></div>
-  <div class="brand">SL<span>-TAXI</span> <small>IBADAN · OYO STATE</small></div>
+  <div class="brand">SL<span>-TAXI</span> <small>OYO STATE</small></div>
   <div class="stats">
     <div id="wallet" class="wallet"></div>
     <div class="fuelbar"><i id="fuelFill"></i><span id="fuelTxt"></span></div>
@@ -695,7 +871,11 @@ hud.innerHTML = `
   <div id="mapbox"><span>3D MAP · tap to enlarge</span></div>
   <div id="nav"><b id="navArrow">⬆</b><div><b id="navDist"></b><div id="navTxt"></div></div></div>
   <div class="speed-panel gauge-panel"><canvas id="gauge" width="300" height="300"></canvas><div class="nitro-bar"><i id="nitroFill"></i></div></div>
-  <button class="cam-btn" id="camBtn">CAM · CHASE</button>
+  <div id="camSwitch">
+    <button id="camPrev" aria-label="Previous camera">◀</button>
+    <button id="camToggle" aria-label="Driver view / outside view"><span>📷</span><b id="camName">CHASE</b></button>
+    <button id="camNext" aria-label="Next camera">▶</button>
+  </div>
   <div class="toast" id="toast"></div>
   <div id="phone" class="mini"><div class="p-body">
     <div class="p-notch"></div>
@@ -713,6 +893,14 @@ hud.innerHTML = `
     </div>
   </div>`;
 document.body.appendChild(hud);
+const camCss = document.createElement('style');
+camCss.textContent = `
+#camSwitch{position:absolute;right:10px;top:46%;transform:translateY(-50%);display:flex;align-items:center;gap:3px;padding:4px;border-radius:24px;background:#0b1018e0;border:1px solid #ffffff55;box-shadow:0 4px 14px #0008;pointer-events:auto;touch-action:none;z-index:6;-webkit-user-select:none;user-select:none}
+#camSwitch button{border:0;color:#fff;font:800 11px Arial,sans-serif;background:#1f2937;border-radius:18px;height:38px;min-width:38px;padding:0 10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+#camSwitch button:active{background:#16a34a}
+#camToggle b{font-size:10px;letter-spacing:1px;min-width:64px;text-align:left}
+@media (max-height:480px){#camSwitch{top:64%}}`;
+document.head.appendChild(camCss);
 function toast(msg, ms = 3500) {
   const t = $('toast'); t.textContent = msg; t.classList.add('on');
   clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), ms);
@@ -730,6 +918,11 @@ function spend(n) {
 function penalty(n, msg) {
   const ok = spend(n); if (!ok) S.stars = Math.max(1, S.stars - 0.3);
   toast(msg + (ok ? '' : ' (unpaid · rating dropped)'), 3500); persist();
+}
+function hurt(dmg, msg) { // crash with a vehicle, train, etc.
+  state.speed *= 0.3; state.crashes++; state.cooldown = 1.0; state.shake = 1;
+  S.damage = Math.min(100, S.damage + dmg); persist(); crashSnd(); toast(msg, 2200);
+  const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
 }
 
 /* ---------- panels (fuel / garage / police / rescue) ---------- */
@@ -948,7 +1141,7 @@ function updateNav() {
   const st = distAt(a * B, b * B), nAxis = vout[0] !== 0 ? 'x' : 'z', street = roadName(nAxis, nAxis === 'x' ? b : a, st);
   let text = `${NAV_TXT[turn]} onto ${street}`;
   const ahead = alongZ && Math.round((P.x - 7) / B) === ta && Math.abs(P.x - ta * B) < 9 && (T.z - P.z) * dir > 0 && (T.z - P.z) * dir < Math.abs(b * B - P.z) + 1;
-  if (ahead) { turn = 'straight'; dist = Math.abs(T.z - P.z); text = 'Destination ahead — stop at the kerb'; }
+  if (ahead) { turn = 'straight'; dist = Math.abs(T.z - P.z); text = 'Destination ahead, stop at the kerb'; }
   else if (turn === 'straight') text = `Continue on ${street}`;
   setNavUI(NAV_ICON[turn], (dist < 100 ? Math.round(dist / 5) * 5 : Math.round(dist / 10) * 10) + ' m', text);
   const key = `${a},${b},${turn},${ahead}`; if (key !== navKey) { navKey = key; navSpoken = 0; }
@@ -978,9 +1171,19 @@ bindHold('nitroBtn', () => state.nitroKey = true, () => state.nitroKey = false);
 bindHold('hornBtn', () => state.horn = true, () => state.horn = false);
 bindHold('steerL', () => state.sL = true, () => state.sL = false);
 bindHold('steerR', () => state.sR = true, () => state.sR = false);
+
+/* ---- camera switch ---- */
 const CAMS = ['CHASE', 'FAR', 'HOOD', 'COCKPIT', 'BUMPER', 'SIDE', 'TOP', 'ORBIT'];
-function cycleCam() { camIdx = (camIdx + 1) % CAMS.length; $('camBtn').textContent = 'CAM · ' + CAMS[camIdx]; dash.visible = camIdx === 3; }
-$('camBtn').addEventListener('pointerdown', e => { e.preventDefault(); cycleCam(); });
+function setCam(i) {
+  camIdx = ((i % CAMS.length) + CAMS.length) % CAMS.length;
+  if (camIdx !== 3) lastOuter = camIdx;
+  $('camName').textContent = CAMS[camIdx] === 'COCKPIT' ? 'DRIVER' : CAMS[camIdx];
+  dash.visible = camIdx === 3;
+}
+const nextCam = () => setCam(camIdx + 1), prevCam = () => setCam(camIdx - 1), toggleDriver = () => setCam(camIdx === 3 ? lastOuter : 3);
+for (const [id, fn] of [['camPrev', prevCam], ['camNext', nextCam], ['camToggle', toggleDriver]])
+  $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
+
 const mapBox = $('mapbox');
 function toggleMap() { mapBig = !mapBig; mapBox.classList.toggle('big', mapBig); }
 mapBox.addEventListener('pointerdown', e => { e.preventDefault(); toggleMap(); });
@@ -991,7 +1194,8 @@ addEventListener('keydown', e => {
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   keys.add(k); initAudio();
   if (k === 'z') hazard = !hazard;
-  if (k === 'c') cycleCam();
+  if (k === 'c') nextCam();
+  if (k === 'b') toggleDriver();
   if (k === 'm') toggleMap();
   if (k === 'p') setPhoneFull(!phone.full);
   if (k === 'enter' && ride.phase === 'offer') acceptRide();
@@ -1017,10 +1221,12 @@ function initAudio() {
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   const noise = (type, f) => { const s = ac.createBufferSource(); s.buffer = nb; s.loop = true; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; const g = ac.createGain(); g.gain.value = 0; s.connect(fl); fl.connect(g); g.connect(out); s.start(); return { f: fl, g }; };
   const wind = noise('lowpass', 900), rain = noise('bandpass', 1500), tire = noise('bandpass', 1700);
+  const trn = noise('lowpass', 150), jet = noise('bandpass', 650);
   const hg = ac.createGain(); hg.gain.value = 0; const hf = ac.createBiquadFilter(); hf.type = 'lowpass'; hf.frequency.value = 1800;
   [osc('square', 420), osc('square', 525)].forEach(o => o.connect(hf)); hf.connect(hg); hg.connect(out);
   const sirenO = osc('triangle', 800), sg = ac.createGain(); sg.gain.value = 0; sirenO.connect(sg); sg.connect(out);
-  audio = { ac, out, nb, eng, ef, eg, wind, rain, tire, hg, sirenO, sg };
+  const bellO = osc('sine', 1450), bg = ac.createGain(); bg.gain.value = 0; bellO.connect(bg); bg.connect(out);
+  audio = { ac, out, nb, eng, ef, eg, wind, rain, tire, trn, jet, hg, sirenO, sg, bg };
 }
 function beep(f, dur, vol, pan) {
   const { ac, out } = audio, t = ac.currentTime, g = ac.createGain(), fl = ac.createBiquadFilter();
@@ -1037,6 +1243,7 @@ function honkAt(x, z) {
   const n = Math.random() < 0.4 ? 2 : 1;
   for (let i = 0; i < n; i++) setTimeout(() => beep(rand(330, 520), rand(0.15, 0.4), (1 - d / 120) * 0.22, pan), i * 260);
 }
+function trainHorn() { if (!audio) return; beep(185, 1.1, 0.25, 0); setTimeout(() => audio && beep(185, 0.6, 0.25, 0), 1400); }
 function noiseBurst(freq, dur, vol) {
   if (!audio) return; const { ac, nb, out } = audio, t = ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
   s.buffer = nb; f.type = 'lowpass'; f.frequency.value = freq; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
@@ -1150,7 +1357,7 @@ function updateCP(dt) {
   if (act) {
     const u = act.userData, dz = P.z - act.position.z;
     if (!u.cleared && !cp.pending) {
-      if (dz > 0 && dz < 35 && !u.warned) { u.warned = true; toast('🚓 Police checkpoint ahead — slow down and stop', 3000); }
+      if (dz > 0 && dz < 35 && !u.warned) { u.warned = true; toast('🚓 Police checkpoint ahead, slow down and stop', 3000); }
       if (dz > 0 && dz < 14 && Math.abs(state.speed) < 2) {
         cp.dwell += dt;
         if (cp.dwell > 1.5) {
@@ -1168,10 +1375,58 @@ function updateCP(dt) {
   if (cp.pending && Math.abs(state.speed) > 6) { cp.pending = false; cp.u.cleared = true; penalty(5000, '🚨 You drove off from the officer! ₦5,000 fine'); }
 }
 
+/* ================= RAILWAY (train + crossing gates) & AEROPLANE ================= */
+function spawnTrain() {
+  const P = car.position; let best = null; const c0 = Math.round((P.x - 80) / B);
+  for (let ci = c0 - 6; ci <= c0 + 6; ci++) { if (!railAt(ci)) continue; const rx = ci * B + 80, d = Math.abs(rx - P.x); if (!best || d < best.d) best = { rx, d }; }
+  if (!best || best.d > 420) { trainT = rand(8, 15); return; }
+  train.on = true; train.railX = best.rx; train.dir = Math.random() < 0.5 ? 1 : -1; train.z = P.z - train.dir * 650;
+  train.g.rotation.y = train.dir > 0 ? Math.PI : 0; train.g.visible = true; train.horned = false;
+}
+function updateRail(dt) {
+  const P = car.position;
+  if (!train.on) { trainT -= dt; if (trainT <= 0) spawnTrain(); }
+  else {
+    train.z += train.dir * train.speed * dt; train.g.position.set(train.railX, 0.2, train.z);
+    const d = Math.hypot(train.railX - P.x, train.z - P.z);
+    if (d < 320 && !train.horned) { train.horned = true; trainHorn(); }
+    if (Math.abs(train.z - P.z) > 800 || Math.abs(train.railX - P.x) > 900) { train.on = false; train.g.visible = false; trainT = rand(40, 80); }
+    else if (state.cooldown <= 0 && Math.abs(P.x - train.railX) < 2.6 && Math.abs(P.z - train.z) < train.len / 2 + 2.4) {
+      hurt(35, '🚆 You were hit by the train!'); state.speed = 0; P.x += P.x < train.railX ? -4 : 4;
+    }
+  }
+  let down = false, bell = false;
+  for (const t of tiles) {
+    const U = t.userData; if (!U.rail) continue;
+    const rx = U.ci * B + 80, zc = U.cj * B, dd = Math.hypot(rx - P.x, zc - P.z); if (dd > 450) continue;
+    const dn = gateDown(rx, zc);
+    for (const gt of U.gates) { gt.ang = damp(gt.ang, dn ? 0 : gt.sgn * 1.25, 2.5, dt); gt.pivot.rotation.x = gt.ang; }
+    if (dn) { down = true; if (dd < 220) bell = true; }
+  }
+  gateLampMat.color.setHex(down && Math.sin(state.time * 10) > 0 ? 0xff2a2a : 0x2a0505);
+  return bell;
+}
+function updatePlane(dt) {
+  const P = car.position;
+  if (!plane.on) {
+    planeT -= dt;
+    if (planeT <= 0) {
+      const a = rand(0, Math.PI * 2), sx = P.x + Math.cos(a) * 900, sz = P.z + Math.sin(a) * 900, tx = P.x + rand(-250, 250), tz = P.z + rand(-250, 250);
+      plane.v.set(tx - sx, 0, tz - sz).normalize().multiplyScalar(85);
+      plane.g.position.set(sx, 120, sz); plane.g.rotation.set(0, Math.atan2(-plane.v.x, -plane.v.z), 0); plane.g.visible = true; plane.on = true;
+    }
+    return;
+  }
+  plane.g.position.addScaledVector(plane.v, dt);
+  plane.g.userData.lights.forEach((m, i) => m.color.setHex(Math.sin(state.time * 6 + i * 3) > 0 ? (i ? 0x00ff66 : 0xff2020) : 0x111111));
+  const rx = plane.g.position.x - P.x, rz = plane.g.position.z - P.z;
+  if (Math.hypot(rx, rz) > 1100 && rx * plane.v.x + rz * plane.v.z > 0) { plane.on = false; plane.g.visible = false; planeT = rand(60, 130); }
+}
+
 /* ================= GAME LOOP ================= */
 const camPos = new THREE.Vector3(), look = new THREE.Vector3(), tmp = new THREE.Vector3();
 camera.position.set(6, 5, 130);
-toast('Welcome to Ibadan, Oyo State! ◀ ▶ steer · P phone · M map · C camera · H horn · T weather', 7000);
+toast('Welcome to Ibadan, Oyo State! ◀ ▶ steer · P phone · M map · C next camera · B driver view · H horn', 7000);
 updateTiles(); assignSites(); renderPhone();
 
 function animate() {
@@ -1227,12 +1482,13 @@ function animate() {
   body.rotation.x = damp(body.rotation.x, (state.thr > 0.3 ? 0.012 : 0) - (brkIn ? 0.03 : 0), 5, dt);
   body.position.y = Math.sin(state.time * 45) * 0.006 * sf;
 
-  // ---- red-light running ----
+  // ---- red-light running (only at junctions that actually have signals) ----
   state.lightCd -= dt;
   { const along = Math.abs(fz0) >= Math.abs(fx0) ? 'z' : 'x', dp = Math.sign(along === 'z' ? fz0 : fx0) || 1;
     const p0 = along === 'z' ? prevZ : prevX, p1 = along === 'z' ? P.z : P.x, n = dp > 0 ? Math.ceil(p0 / B) * B : Math.floor(p0 / B) * B;
     const d0 = (n - p0) * dp, d1 = (n - p1) * dp;
-    if (d0 > 9 && d1 <= 9 && state.speed > 3 && lightFor(along) === 'red' && state.lightCd <= 0) { state.lightCd = 4; penalty(1500, '🚦 You ran a red light! ₦1,500 fine'); } }
+    const jci = along === 'z' ? Math.round(P.x / B) : Math.round(n / B), jcj = along === 'z' ? Math.round(n / B) : Math.round(P.z / B);
+    if (d0 > 9 && d1 <= 9 && state.speed > 3 && signalAt(jci, jcj) && lightFor(along) === 'red' && state.lightCd <= 0) { state.lightCd = 4; penalty(1500, '🚦 You ran a red light! ₦1,500 fine'); } }
 
   // ---- fuel ----
   if (hasFuel) {
@@ -1241,6 +1497,9 @@ function animate() {
     if (S.fuel < cfg.tank * 0.15 && !state.lowFuel) { state.lowFuel = true; toast('⛽ Low fuel! Find a fuel station'); }
     if (S.fuel > cfg.tank * 0.2) state.lowFuel = false;
   } else if (!state.dead) { state.dead = true; toast('Engine died: out of fuel!'); }
+
+  // ---- railway & aeroplane ----
+  bellOn = updateRail(dt); updatePlane(dt);
 
   // ---- wheels, lights ----
   for (const w of body.userData.wheels) { w.spin.rotation.x -= state.speed * dt / 0.38; if (w.front) w.pivot.rotation.y = -state.steer * 0.4; }
@@ -1256,21 +1515,37 @@ function animate() {
   state.cooldown -= dt;
   let sirenD = 999;
   for (const t of traffic) {
+    if (!t.on) { t.off -= dt; if (t.off <= 0 || Math.hypot(t.mesh.position.x - P.x, t.mesh.position.z - P.z) > 380) placeTraffic(t); continue; }
     let target = t.base, blockedBy = false;
     for (const o of traffic) {
-      if (o === t || o.axis !== t.axis || o.c !== t.c) continue;
+      if (o === t || !o.on || o.axis !== t.axis || o.c !== t.c) continue;
       const gap = (o.s - t.s) * t.dir - (o.l + t.l) / 2;
       if (gap > -1 && gap < 24) { target = Math.min(target, gap < 5 ? 0 : Math.min(o.speed + 2, gap * 0.9)); if (gap < 8) blockedBy = true; }
     }
     const pa = t.axis === 'z' ? P.z : P.x, pl = t.axis === 'z' ? P.x : P.z;
     if (Math.abs(pl - t.c) < 2.4) { const pg = (pa - t.s) * t.dir - (dim.l + t.l) / 2; if (pg > -1 && pg < 24) { target = Math.min(target, pg < 6 ? 0 : pg * 0.6); if (pg < 10) blockedBy = true; } }
+    // junctions: obey signals only where a signal exists
     const n = t.dir > 0 ? Math.ceil(t.s / B) * B : Math.floor(t.s / B) * B, gapL = (n - t.s) * t.dir - 9.5 - t.l / 2;
-    if (gapL > -1) { const L = lightFor(t.axis); if (L === 'red' || (L === 'yellow' && gapL > t.speed * t.speed / 10)) target = Math.min(target, Math.max(0, gapL) * 0.9); }
+    if (gapL > -1 && gapL < 60) {
+      const ci = t.axis === 'z' ? Math.round(t.c / B) : Math.round(n / B), cj = t.axis === 'z' ? Math.round(n / B) : Math.round(t.c / B);
+      if (signalAt(ci, cj)) { const L = lightFor(t.axis); if (L === 'red' || (L === 'yellow' && gapL > t.speed * t.speed / 10)) target = Math.min(target, Math.max(0, gapL) * 0.9); }
+    }
+    // railway crossings (east-west traffic only)
+    if (t.axis === 'x') {
+      const base = t.dir > 0 ? Math.ceil((t.s - 80) / B) : Math.floor((t.s - 80) / B);
+      for (let k = 0; k < 3; k++) {
+        const ci = base + k * t.dir; if (!railAt(ci)) continue;
+        const rx = ci * B + 80, gapR = (rx - t.s) * t.dir - 7.5 - t.l / 2;
+        if (gapR > -1 && gapR < 70 && gateDown(rx, Math.round(t.c / B) * B)) target = Math.min(target, Math.max(0, gapR) * 0.9);
+        break;
+      }
+    }
     t.speed += (target - t.speed) * Math.min(1, dt * (target < t.speed ? 3 : 1.5));
     t.s += t.dir * t.speed * dt;
     t.mesh.position.set(t.axis === 'z' ? t.c : t.s, 0, t.axis === 'z' ? t.s : t.c);
     const ud = t.mesh.userData, brk = target < t.speed - 0.3 || t.speed < 0.5;
     ud.tails.forEach(m => m.emissiveIntensity = brk ? 3 : 0.5 + dark * 1.5);
+    if (ud.riderLegs) { const a = state.time * 2 + t.speed * state.time * 0.6; ud.riderLegs[0].rotation.x = 1.0 + Math.sin(a) * 0.7; ud.riderLegs[1].rotation.x = 1.0 - Math.sin(a) * 0.7; }
     if (ud.flash.length) {
       const p = Math.sin(state.time * 14) > 0; ud.flash[0].emissiveIntensity = p ? 4 : 0.2; ud.flash[1].emissiveIntensity = p ? 0.2 : 4;
       sirenD = Math.min(sirenD, Math.hypot(t.mesh.position.x - P.x, t.mesh.position.z - P.z));
@@ -1278,15 +1553,13 @@ function animate() {
     t.honkT -= dt; if (blockedBy && t.speed < 3 && t.honkT < 0) { honkAt(t.mesh.position.x, t.mesh.position.z); t.honkT = rand(1.2, 3.5); }
     else if (t.honkT < -6 && Math.random() < dt * 0.25) { honkAt(t.mesh.position.x, t.mesh.position.z); t.honkT = rand(5, 14); }
     if (Math.hypot(t.mesh.position.x - P.x, t.mesh.position.z - P.z) > 380) placeTraffic(t);
-    if (state.cooldown <= 0 && Math.abs(t.mesh.position.x - P.x) < 14 && Math.abs(t.mesh.position.z - P.z) < 14) {
+    const reach = 8 + t.l / 2;
+    if (state.cooldown <= 0 && Math.abs(t.mesh.position.x - P.x) < reach && Math.abs(t.mesh.position.z - P.z) < reach) {
       const A = circ(P.x, P.z, state.heading, dim.l, dim.w), C = circ(t.mesh.position.x, t.mesh.position.z, t.hdg, t.l, t.w); let hit = null;
       for (const a of A) for (const c of C) { const dx = a[0] - c[0], dz = a[1] - c[1], rr = a[2] + c[2]; if (dx * dx + dz * dz < rr * rr) hit = [dx, dz]; }
       if (hit) {
         const m = Math.hypot(hit[0], hit[1]) || 1; P.x += hit[0] / m * 0.8; P.z += hit[1] / m * 0.8;
-        state.speed *= 0.3; t.speed *= 0.5; state.crashes++; state.cooldown = 0.9; state.shake = 1;
-        S.damage = Math.min(100, S.damage + 12); persist(); crashSnd(); honkAt(t.mesh.position.x, t.mesh.position.z);
-        toast(`💥 Crash! Damage ${Math.round(S.damage)}%`, 2000);
-        const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+        t.speed *= 0.5; hurt(t.kind === 'bicycle' || t.kind === 'okada' ? 18 : 12, `💥 Crash! Damage ${Math.round(Math.min(100, S.damage + 12))}%`); honkAt(t.mesh.position.x, t.mesh.position.z);
       }
     }
   }
@@ -1315,7 +1588,7 @@ function animate() {
   sun.position.set(P.x - 20, 35, P.z + 15); sun.target.position.copy(P);
   beacon.rotation.y += dt; bm.opacity = 0.22 + Math.sin(state.time * 4) * 0.08;
   updateCP(dt);
-  if (st.name !== state.st) { if (state.st) toast(`📍 Entering ${st.name}, Ibadan`, 3000); state.st = st.name; }
+  if (st.name !== state.st) { if (state.st) toast(`📍 Entering ${st.name}${kindTag(st)}`, 3000); state.st = st.name; }
 
   // ---- panels ----
   const slow = Math.abs(state.speed) < 2.5; let curFuel = null, atGar = false;
@@ -1373,6 +1646,10 @@ function animate() {
     audio.tire.g.gain.setTargetAtTime(sq * (spd > 4 ? 0.12 : 0), t, 0.05);
     audio.hg.gain.setTargetAtTime(hornOn ? 0.18 : 0, t, 0.02);
     audio.sg.gain.setTargetAtTime(clamp(1 - sirenD / 90, 0, 1) * 0.07, t, 0.1); audio.sirenO.frequency.setTargetAtTime(800 + Math.sin(state.time * 5) * 350, t, 0.03);
+    const td = train.on ? Math.hypot(train.railX - P.x, train.z - P.z) : 9999, pd = plane.on ? Math.hypot(plane.g.position.x - P.x, plane.g.position.z - P.z) : 9999;
+    audio.trn.g.gain.setTargetAtTime(clamp(1 - td / 260, 0, 1) * 0.25, t, 0.2);
+    audio.jet.g.gain.setTargetAtTime(clamp(1 - pd / 800, 0, 1) * 0.1, t, 0.3);
+    audio.bg.gain.setTargetAtTime(bellOn && Math.sin(state.time * 12) > 0 ? 0.05 : 0, t, 0.01);
   }
 
   // ---- HUD ----
@@ -1386,9 +1663,10 @@ function animate() {
     const fp = S.fuel / cfg.tank, ff = $('fuelFill'); ff.style.width = fp * 100 + '%'; ff.style.background = fp < 0.15 ? '#ff4350' : '#ffd23f';
     $('fuelTxt').textContent = `⛽ ${S.fuel.toFixed(1)} / ${cfg.tank} L`;
     const az = Math.abs(Math.cos(state.heading)) >= Math.abs(Math.sin(state.heading));
-    $('loc').textContent = `📍 ${st.name}, Ibadan · ${az ? roadName('z', Math.round(P.x / B), st) : roadName('x', Math.round(P.z / B), st)}`;
+    $('loc').textContent = `📍 ${st.name}${kindTag(st)} · ${az ? roadName('z', Math.round(P.x / B), st) : roadName('x', Math.round(P.z / B), st)}`;
     const h = Math.floor(state.tod), m = Math.floor((state.tod % 1) * 60), hm = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    $('wxt').textContent = `${WX[wxKey].i} ${WX[wxKey].n} · ${hm} · 🚦 ${lightFor(az ? 'z' : 'x')}`;
+    const sg = signalAhead();
+    $('wxt').textContent = `${WX[wxKey].i} ${WX[wxKey].n} · ${hm}${sg ? ' · 🚦 ' + sg : ''}${train.on && Math.hypot(train.railX - P.x, train.z - P.z) < 300 ? ' · 🚆 TRAIN' : ''}`;
     $('pTime').textContent = hm;
     $('stat').textContent = `★ ${S.stars.toFixed(1)} · Rides ${S.rides} · Damage ${Math.round(S.damage)}%`;
     if (Math.random() < 0.05) persist();
