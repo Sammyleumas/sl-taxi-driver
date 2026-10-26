@@ -107,10 +107,10 @@ const railAt = ci => Math.abs(ci) % 5 === 2;
 
 const CARS = {
   cab: { name: 'Ibadan Cab', type: 'taxi', price: 0, maxV: 52, acc: 24, tank: 30, burn: 1, fare: 1 },
-  hatch: { name: 'City Hatch', type: 'hatch', price: 60000, maxV: 48, acc: 22, tank: 28, burn: 0.7, fare: 0.9 },
-  sedan: { name: 'Comfort Sedan', type: 'sedan', price: 15000, maxV: 56, acc: 27, tank: 35, burn: 0.85, fare: 1.15 },
-  suv: { name: 'Executive SUV', type: 'suv', price: 40000, maxV: 54, acc: 25, tank: 55, burn: 1.3, fare: 1.5 },
-  sports: { name: 'Sport Coupe', type: 'sports', price: 900000, maxV: 70, acc: 34, tank: 40, burn: 1.6, fare: 1.8 }
+  hatch: { name: 'City Hatch', type: 'hatch', price: 600, maxV: 48, acc: 22, tank: 28, burn: 0.7, fare: 0.9 },
+  sedan: { name: 'Comfort Sedan', type: 'sedan', price: 1500, maxV: 56, acc: 27, tank: 35, burn: 0.85, fare: 1.15 },
+  suv: { name: 'Executive SUV', type: 'suv', price: 4000, maxV: 54, acc: 25, tank: 55, burn: 1.3, fare: 1.5 },
+  sports: { name: 'Sport Coupe', type: 'sports', price: 5000, maxV: 70, acc: 34, tank: 40, burn: 1.6, fare: 1.8 }
 };
 const PAINTS = [['Yellow', 0xf5c518], ['Black', 0x15171a], ['White', 0xf1f1f1], ['Red', 0xd7192d],
   ['Blue', 0x1f5fbf], ['Green', 0x1f8a4c], ['Silver', 0xa7adb3]];
