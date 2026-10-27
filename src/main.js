@@ -124,7 +124,7 @@ const WX = {
 const WX_KEYS = Object.keys(WX);
 
 const SAVE_KEY = 'sl-racer-taxi-v1';
-const S = { ngn: 50000, usd: 1500, fuel: 18, car: 'cab', color: 0xf5c518, owned: { cab: 1 }, damage: 0, rides: 0, stars: 5, history: [] };
+const S = { ngn: 50000, usd: 1500, fuel: 18, car: 'cab', color: 0xf5c518, owned: { cab: 1 }, damage: 0, rides: 0, stars: 5, history: [], food: 80, rest: 85, broken: false }; 
 try { Object.assign(S, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch {}
 if (!CARS[S.car]) S.car = 'cab';
 if (!Array.isArray(S.history)) S.history = [];
@@ -710,12 +710,12 @@ function makeCheckpoint() {
 }
 const fuelPool = [makeFuelStation(), makeFuelStation()], garPool = [makeGarage()], cpPool = [makeCheckpoint(), makeCheckpoint()];
 function assignSites() {
-  const P = car.position, L = { fuel: [], gar: [], cp: [] };
+  const P = focusPos(), L = { fuel: [], gar: [], cp: [], food: [] };
   for (const t of tiles) {
     const U = t.userData; if (!U.key) continue;
-    for (const k in L) if (U.sites[k]) { const x = U.ci * B, z = U.cj * B + (k === 'cp' ? 45 : 80); L[k].push({ x, z, hs: hash(U.ci, U.cj), d: Math.hypot(x - P.x, z - P.z) }); }
+    for (const k in L) if (U.sites[k]) { const x = U.ci * B, z = U.cj * B + (k === 'cp' ? 45 : k === 'food' ? 125 : 80); L[k].push({ x, z, hs: hash(U.ci, U.cj), d: Math.hypot(x - P.x, z - P.z) }); }
   }
-  const pools = { fuel: fuelPool, gar: garPool, cp: cpPool };
+  const pools = { fuel: fuelPool, gar: garPool, cp: cpPool, food: vendorPool };
   for (const k in L) {
     L[k].sort((a, b) => a.d - b.d);
     pools[k].forEach((g, i) => {
@@ -725,9 +725,11 @@ function assignSites() {
         u.hs = s.hs;
         if (k === 'fuel') { u.site = { price: 850 + s.hs % 180, name: SITE_NAMES[s.hs % SITE_NAMES.length] }; u.draw(u.site.name, u.site.price); }
         if (k === 'cp') { u.cleared = false; u.warned = false; u.prevDz = -1; }
+        if (k === 'food') { u.vname = VENDOR_NAMES[s.hs % VENDOR_NAMES.length]; u.draw(u.vname); }
       }
     });
   }
+  assignBoards();
 }
 
 /* ================= PLAYER ================= */
@@ -862,14 +864,16 @@ const hud = document.createElement('div');
 hud.id = 'hud';
 hud.innerHTML = `
   <div class="flash" id="flash"></div>
+  <div id="drowsy"></div>
   <div class="brand">SL<span>-TAXI</span> <small>OYO STATE</small></div>
   <div class="stats">
     <div id="wallet" class="wallet"></div>
     <div class="fuelbar"><i id="fuelFill"></i><span id="fuelTxt"></span></div>
+    <div class="miniBars"><div class="mbar"><i id="foodFill"></i><span id="foodTxt">🍲</span></div><div class="mbar"><i id="restFill"></i><span id="restTxt">😴</span></div></div>
     <div id="loc"></div><div id="wxt"></div><div id="stat"></div>
   </div>
   <div id="mapbox"><span>3D MAP · tap to enlarge</span></div>
-  <div id="nav"><b id="navArrow">⬆</b><div><b id="navDist"></b><div id="navTxt"></div></div></div>
+  <div id="nav"><b id="navArrow">⬆</b><div><b id="navDist"></b><div id="navTxt"></div></div><button id="navX" aria-label="Cancel navigation">✕</button></div>
   <div class="speed-panel gauge-panel"><canvas id="gauge" width="300" height="300"></canvas><div class="nitro-bar"><i id="nitroFill"></i></div></div>
   <div id="camSwitch">
     <button id="camPrev" aria-label="Previous camera">◀</button>
@@ -883,6 +887,10 @@ hud.innerHTML = `
       <div class="p-title"><b>SL-Taxi Driver</b><span id="pMini"></span></div></div>
     <div id="pApp"></div>
   </div></div>
+  <button id="searchBtn">🔍 Search places</button>
+  <div id="places"><div class="plhead"><b>📍 Important places</b><button id="plClose">✕</button></div>
+    <input id="plInput" type="search" placeholder="Hospital, market, police, buka…" autocomplete="off">
+    <div id="plChips"></div><div id="plList"></div></div>
   <div id="panel"></div>
   <div class="controls">
     <div class="arrows"><button class="arrow" id="steerL" aria-label="Steer left">◀</button><button class="arrow" id="steerR" aria-label="Steer right">▶</button></div>
@@ -922,6 +930,7 @@ function penalty(n, msg) {
 function hurt(dmg, msg) { // crash with a vehicle, train, etc.
   state.speed *= 0.3; state.crashes++; state.cooldown = 1.0; state.shake = 1;
   S.damage = Math.min(100, S.damage + dmg); persist(); crashSnd(); toast(msg, 2200);
+  if (S.damage >= 60 && !S.broken && Math.random() < 0.4) setTimeout(() => breakDown('💨 Engine stalled after the crash!'), 1200);
   const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
 }
 
@@ -938,8 +947,15 @@ function renderPanel() {
     p.innerHTML = `<h3>⛽ ${fuelSite.name}</h3>${bal}<p>${fmtN(pr)}/L · Tank ${S.fuel.toFixed(1)}/${cfg.tank} L</p>
       <div class="row"><button data-a="fuel" data-v="5">+5 L<br>${fmtN(5 * pr)}</button><button data-a="fuel" data-v="10">+10 L<br>${fmtN(10 * pr)}</button>
       <button data-a="fuel" data-v="99">FILL<br>${fmtN(room * pr)}</button></div><p class="msg">${pmsg}</p>`;
-  } else if (panelType === 'rescue') {
-    p.innerHTML = `<h3>🚨 Out of fuel</h3>${bal}<p>Call roadside assistance for 5 L of fuel.</p><div class="row"><button data-a="rescue">CALL · ${fmtN(3000)}</button></div><p class="msg">${pmsg}</p>`;
+  } else if (panelType === 'food') {
+    const dl = DISHES.map((d, i) => `<div class="item"><div><b>${d.i} ${d.n}</b><small>Food +${d.f}% · ${fmtN(d.p)}</small></div><button data-a="eat" data-v="${i}">EAT</button></div>`).join('');
+    p.innerHTML = `<h3>🍲 ${foodName}</h3>${bal}<p>Food ${Math.round(S.food)}% · Rest ${Math.round(S.rest)}%</p>${dl}<div class="row"><button data-a="rest">💤 REST ON THE BENCH (free)</button></div><p class="msg">${pmsg}</p>`;
+  } else if (panelType === 'rest') {
+    p.innerHTML = `<h3>💤 Resting on the bench…</h3><div class="restbar"><i id="restBar"></i></div><p>Your energy is coming back. Time is passing.</p>`;
+  } else if (panelType === 'bikefuel') {
+    const st = fuelRun.st, room = Math.max(1, Math.floor(cfg.tank - S.fuel));
+    p.innerHTML = `<h3>⛽ ${st.name}</h3>${bal}<p>You are at the filling station with rider Sodiq. Petrol ${fmtN(st.price)}/L · room in tank ${room} L</p>
+      <div class="row"><button data-a="bikebuy" data-v="5">5 L<br>${fmtN(5 * st.price)}</button><button data-a="bikebuy" data-v="10">10 L<br>${fmtN(10 * st.price)}</button><button data-a="bikebuy" data-v="max">MAX ${room} L<br>${fmtN(room * st.price)}</button></div><p class="msg">${pmsg}</p>`;
   } else if (panelType === 'police') {
     p.innerHTML = `<h3>🚓 Police Checkpoint</h3>${bal}<p>"Oga, you no get something for the boys? ${fmtN(cp.bribe)} for water."</p>
       <div class="row"><button data-a="pay">PAY ${fmtN(cp.bribe)}</button><button data-a="refuse">REFUSE</button></div><p class="msg">${pmsg}</p>`;
@@ -955,14 +971,15 @@ function showPanel(t) { panelType = t; pmsg = ''; renderPanel(); }
 $('panel').addEventListener('click', e => {
   const b = e.target.closest('[data-a]'); if (!b) return;
   const a = b.dataset.a, v = b.dataset.v;
+  if (a === 'eat' || a === 'rest' || a === 'bikebuy') { extraPanelAction(a, v); return; }
   if (a === 'fuel') {
     const l = Math.min(+v, cfg.tank - S.fuel);
     if (l <= 0.01) pmsg = 'Tank is full'; else if (spend(l * fuelSite.price)) { S.fuel += l; pmsg = `Bought ${l.toFixed(1)} L`; } else pmsg = 'Not enough money';
-  } else if (a === 'rescue') { if (spend(3000)) { S.fuel += 5; panelType = null; } else pmsg = 'Not enough money'; }
+  } else if (a === 'rescue') { if (spend(300)) { S.fuel += 5; panelType = null; } else pmsg = 'Not enough money'; }
   else if (a === 'buy') { if (spend(CARS[v].price)) { S.owned[v] = 1; setCar(v, S.color); pmsg = 'Purchased!'; } else pmsg = 'Not enough money'; }
   else if (a === 'sel') { setCar(v, S.color); pmsg = 'Car changed'; }
   else if (a === 'paint') { const c = PAINTS[v][1]; if (c === S.color) pmsg = 'Already this colour'; else if (spend(2500)) { setCar(S.car, c); pmsg = 'Fresh paint!'; } else pmsg = 'Not enough money'; }
-  else if (a === 'repair') { const cost = S.damage * 400; if (cost < 1) pmsg = 'No damage'; else if (spend(cost)) { S.damage = 0; pmsg = 'Fully repaired'; } else pmsg = 'Not enough money'; }
+  else if (a === 'repair') { const cost = S.damage * 400; if (cost < 1 && !S.broken) pmsg = 'No damage'; else if (spend(cost)) { S.damage = 0; S.broken = false; state.dead = false; hazard = false; pmsg = 'Fully repaired'; } else pmsg = 'Not enough money'; }
   else if (a === 'convert') { if (S.usd > 0) { S.ngn += S.usd * RATE; pmsg = `Converted ${fmtD(S.usd)}`; S.usd = 0; } else pmsg = 'No dollars to convert'; }
   else if (a === 'pay') { if (spend(cp.bribe)) { cp.u.cleared = true; cp.pending = false; panelType = null; toast('👮 "Thank you, oga. Safe journey."'); } else pmsg = 'Not enough money'; }
   else if (a === 'refuse') {
@@ -993,11 +1010,15 @@ const routeSegs = Array.from({ length: 12 }, () => { const m = new THREE.Mesh(ro
 function setPhoneFull(v) { phone.full = v; pEl.classList.toggle('full', v); }
 function updatePhoneHead(dText) {
   let t;
-  if (!phone.online) t = '⚫ Offline';
+  if (fuelRun.active) t = '🏍️ Fuel run · ' + fuelRun.label;
+  else if (mech.active) t = '🔧 Mechanic · ' + mech.label;
+  else if (S.broken) t = '🔴 Engine broken · tap HELP';
+  else if (!phone.online) t = '⚫ Offline';
   else if (phone.summary) t = '✅ Trip completed';
   else if (ride.phase === 'offer') t = '🔔 New booking! Tap ACCEPT';
   else if (ride.phase === 'pickup') t = `📍 Pickup · ${dText || ''}`;
   else if (ride.phase === 'trip') t = `🏁 Drop-off · ${dText || ''}`;
+  else if (S.fuel <= 0.5) t = '⛽ Out of fuel · tap HELP';
   else t = '🟢 Online · finding riders';
   $('pMini').textContent = t;
 }
@@ -1022,12 +1043,13 @@ function renderPhone() {
       <div class="navrow"><b id="pTurn">⬆</b><div><b id="pDist">…</b><div id="pTurnTxt"></div></div></div>
       ${r.phase === 'pickup' ? `<div class="chat">💬 “${phone.msg}”</div>` : ''}
       <div class="meta">Fare<b class="fare">${pr}</b></div>
-      <div class="prow"><button data-p="cancel" class="no">CANCEL RIDE</button></div></div>`;
+      ${helpButtons()}<div class="prow"><button data-p="cancel" class="no">CANCEL RIDE</button></div></div>`;
   } else {
     const today = S.history.reduce((a, x) => a + (x.cur === 'NGN' ? x.amt : x.amt * RATE), 0);
-    const tabs = `<div class="ptabs">${['home', 'trips', 'wallet'].map(t => `<button data-p="tab" data-t="${t}" class="${phone.tab === t ? 'on' : ''}">${t.toUpperCase()}</button>`).join('')}</div>`;
+    const tabs = `<div class="ptabs">${['home', 'trips', 'wallet', 'help'].map(t => `<button data-p="tab" data-t="${t}" class="${phone.tab === t ? 'on' : ''}">${t.toUpperCase()}</button>`).join('')}</div>`;
     let c;
-    if (phone.tab === 'trips') c = `<div class="pcard"><h4>Recent trips</h4>${S.history.slice(-5).reverse().map(x => `<div class="trip"><span>${x.name} · ${x.to}</span><b>${x.cur === 'NGN' ? fmtN(x.amt) : fmtD(x.amt)}</b></div>`).join('') || '<small>No trips yet</small>'}</div>`;
+    if (phone.tab === 'help') c = helpCard();
+    else if (phone.tab === 'trips') c = `<div class="pcard"><h4>Recent trips</h4>${S.history.slice(-5).reverse().map(x => `<div class="trip"><span>${x.name} · ${x.to}</span><b>${x.cur === 'NGN' ? fmtN(x.amt) : fmtD(x.amt)}</b></div>`).join('') || '<small>No trips yet</small>'}</div>`;
     else if (phone.tab === 'wallet') c = `<div class="pcard"><h4>Wallet</h4><div class="big">${fmtN(S.ngn)}</div><div>${fmtD(S.usd)} <small>(₦${RATE}/$)</small></div><small>Earned from ${S.history.length} recent trips: ${fmtN(today)}</small></div>`;
     else c = `<div class="pcard center"><div class="status ${phone.online ? 'on' : 'off'}">${phone.online ? '● You are ONLINE' : '○ You are OFFLINE'}</div>
       ${phone.online ? '<div class="radar"></div>' : ''}<small>${phone.online ? 'Looking for bookings in ' + distAt(car.position.x, car.position.z).name : 'Go online to receive bookings'}</small>
@@ -1040,6 +1062,7 @@ pEl.addEventListener('click', e => {
   const b = e.target.closest('[data-p]');
   if (!b) { setPhoneFull(!phone.full); return; }
   const a = b.dataset.p;
+  if (helpAction(a)) return;
   if (a === 'accept') acceptRide();
   else if (a === 'decline') declineRide();
   else if (a === 'cancel') { S.stars = Math.max(1, S.stars - 0.15); toast('Ride cancelled'); endRide(); setPhoneFull(false); }
@@ -1111,7 +1134,8 @@ const NAV_ICON = { straight: '⬆', left: '⬅', right: '➡', uturn: '↩' };
 const NAV_TXT = { straight: 'Continue straight', left: 'Turn left', right: 'Turn right', uturn: 'Make a U-turn' };
 let navKey = '', navSpoken = 0;
 function setNavUI(icon, dist, text) {
-  $('nav').classList.add('on'); $('navArrow').textContent = icon; $('navDist').textContent = dist; $('navTxt').textContent = text;
+  $('nav').classList.add('on'); $('navArrow').textContent = icon; $('navDist').textContent = dist;
+  $('navTxt').textContent = (placeNav ? placeNav.name + ' · ' : '') + text; $('navX').style.display = placeNav ? 'block' : 'none';
   const a = $('pTurn'), b = $('pDist'), c = $('pTurnTxt'); if (a) { a.textContent = icon; b.textContent = dist; c.textContent = text; }
   updatePhoneHead(dist);
 }
@@ -1190,6 +1214,7 @@ mapBox.addEventListener('pointerdown', e => { e.preventDefault(); toggleMap(); }
 function setWeather(k) { wxKey = k; toast(`${WX[k].i} ${WX[k].n}`, 2500); }
 const keys = new Set();
 addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   keys.add(k); initAudio();
@@ -1197,6 +1222,7 @@ addEventListener('keydown', e => {
   if (k === 'c') nextCam();
   if (k === 'b') toggleDriver();
   if (k === 'm') toggleMap();
+  if (k === 'g') openPlaces();
   if (k === 'p') setPhoneFull(!phone.full);
   if (k === 'enter' && ride.phase === 'offer') acceptRide();
   if (k === 'x' && ride.phase === 'offer') declineRide();
@@ -1423,6 +1449,370 @@ function updatePlane(dt) {
   if (Math.hypot(rx, rz) > 1100 && rx * plane.v.x + rz * plane.v.z > 0) { plane.on = false; plane.g.visible = false; planeT = rand(60, 130); }
 }
 
+
+/* ================= SERVICES: FOOD · REST · MECHANIC · FUEL BIKE · PLACES ================= */
+const isGarTile = (ci, cj) => (ci === 1 && cj === 0) || hash(ci, cj) % 23 === 7;
+const isFuelTile = (ci, cj) => !isGarTile(ci, cj) && ((ci === 0 && cj === 0) || hash(ci, cj) % 9 === 3);
+const isFoodTile = (ci, cj) => (ci === 0 && cj === -1) || (!isGarTile(ci, cj) && !isFuelTile(ci, cj) && hash(ci, cj) % 5 === 1);
+
+const DISHES = [
+  { n: 'Amala + Ewedu + Gbegiri', p: 1500, f: 45, r: 5, i: '🍲' },
+  { n: 'Jollof rice + chicken', p: 2000, f: 50, r: 5, i: '🍛' },
+  { n: 'Pounded yam + Egusi', p: 2500, f: 60, r: 8, i: '🥘' },
+  { n: 'Suya (spicy beef)', p: 1000, f: 25, r: 3, i: '🍢' },
+  { n: 'Pepper soup + agidi', p: 1800, f: 35, r: 12, i: '🍵' },
+  { n: 'Akara + pap', p: 700, f: 20, r: 3, i: '🥣' },
+  { n: 'Zobo / Chapman drink', p: 500, f: 5, r: 15, i: '🥤' }
+];
+const VENDOR_NAMES = ['MAMA PUT BUKA', 'IYA BASIRAT AMALA', 'AUNTY NGOZI FOOD', 'OLUYOLE BUKA', 'MAMA TUNDE SUYA'];
+const rest = { on: false, t: 0 }, warned = { food: false, rest: false };
+let foodName = '', placeNav = null, placeFilter = '', placeRes = [];
+
+/* ---------- focus (the world streams around the bike during a fuel run) ---------- */
+const bikeFollow = () => fuelRun.active && (fuelRun.phase === 'toStation' || fuelRun.phase === 'buy' || fuelRun.phase === 'back');
+const focusPos = () => bikeFollow() ? fuelRun.pos : car.position;
+function followBikeCam(cpos, lk) {
+  const h = fuelRun.hb, fx = -Math.sin(h), fz = -Math.cos(h), p = fuelRun.pos;
+  cpos.set(p.x - fx * 7, 3.3, p.z - fz * 7); lk.set(p.x + fx * 6, 1.3, p.z + fz * 6);
+}
+const canWork = () => !S.broken && S.fuel > 0.5 && !fuelRun.active && !mech.active && !rest.on;
+
+/* ---------- buka (food vendor) ---------- */
+function makeVendor() {
+  const g = new THREE.Group(), steam = [];
+  const M = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+  const cv = document.createElement('canvas'); cv.width = 384; cv.height = 96;
+  const cx = cv.getContext('2d'), tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const wood = mat(0x8a5a2b, 0.9), plastic = [mat(0xd7192d, 0.6), mat(0x1f5fbf, 0.6)];
+  M(bx(14, 0.06, 11), mat(0x8a6a44, 1), 15, 0.03, 0).castShadow = false;
+  for (const [x, z] of [[9.5, -4], [9.5, 4], [15.5, -4], [15.5, 4]]) M(new THREE.CylinderGeometry(0.1, 0.1, 2.8, 6), trunkMat, x, 1.4, z);
+  M(bx(7.4, 0.12, 9.4), rustMat, 12.5, 2.9, 0).rotation.z = 0.08;
+  M(bx(1.2, 1, 6), wood, 10.4, 0.5, 0);
+  for (const z of [-1.8, 0, 1.8]) {
+    M(new THREE.CylinderGeometry(0.38, 0.34, 0.5, 10), mat(0x2a2d31, 0.5, 0.5), 10.4, 1.25, z);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, depthWrite: false }));
+    s.position.set(10.4, 1.8, z); g.add(s); steam.push(s);
+  }
+  for (const z of [-2.6, 2.6]) {
+    M(bx(1.3, 0.8, 1.1), wood, 14.4, 0.4, z);
+    M(bx(0.5, 0.45, 0.5), plastic[z > 0 ? 1 : 0], 13.2, 0.22, z); M(bx(0.5, 0.45, 0.5), plastic[z > 0 ? 0 : 1], 15.6, 0.22, z);
+    const c = makePerson(z > 0 ? 'F' : 'M', 1); dressPerson(c); c.position.set(13.2, -0.2, z); c.rotation.y = -Math.PI / 2;
+    c.userData.legs.forEach(l => l.rotation.x = 1.4); g.add(c);
+  }
+  const seller = makePerson('F'); dressPerson(seller); seller.position.set(11.6, 0.05, 0); seller.rotation.y = Math.PI / 2; g.add(seller);
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 1.15), new THREE.MeshBasicMaterial({ map: tex }));
+  board.position.set(9.0, 3.5, 0); board.rotation.y = -Math.PI / 2; g.add(board);
+  g.userData = { steam, draw: name => { cx.fillStyle = '#7a3b12'; cx.fillRect(0, 0, 384, 96); cx.fillStyle = '#ffd23f'; cx.font = 'bold 40px Arial'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(name, 192, 48); tex.needsUpdate = true; } };
+  g.visible = false; scene.add(g); return g;
+}
+const vendorPool = [makeVendor(), makeVendor()];
+
+/* ---------- smoke from a broken engine ---------- */
+const smoke = Array.from({ length: 5 }, () => {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 6), new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.5, depthWrite: false }));
+  m.layers.set(1); m.visible = false; car.add(m); return m;
+});
+if (S.broken) { hazard = true; state.dead = true; }
+
+/* ---------- road path helper (bike goes along real roads) ---------- */
+function roadPath(a, b) {
+  const info = p => { const col = Math.round(p[0] / B), row = Math.round(p[1] / B); return { col, row, ns: Math.abs(p[0] - col * B) <= Math.abs(p[1] - row * B) }; };
+  const A = info(a), T = info(b), pts = [a];
+  if (A.ns && T.ns) { if (A.col !== T.col) { const rz = Math.round((a[1] + b[1]) / 2 / B) * B + 5; pts.push([A.col * B + 5, rz], [T.col * B + 5, rz]); } }
+  else if (A.ns && !T.ns) pts.push([A.col * B + 5, T.row * B + 5]);
+  else if (!A.ns && T.ns) pts.push([T.col * B + 5, A.row * B + 5]);
+  else if (A.row !== T.row) { const cx2 = Math.round((a[0] + b[0]) / 2 / B) * B + 5; pts.push([cx2, A.row * B + 5], [cx2, T.row * B + 5]); }
+  pts.push(b); return pts;
+}
+function stepPath(fr, dt, speed) {
+  let rem = speed * dt;
+  while (rem > 0 && fr.seg < fr.path.length - 1) {
+    const b = fr.path[fr.seg + 1], dx = b[0] - fr.pos.x, dz = b[1] - fr.pos.z, d = Math.hypot(dx, dz);
+    if (d > 0.01) fr.hb = Math.atan2(-dx, -dz);
+    if (d <= rem) { fr.pos.set(b[0], 0, b[1]); rem -= d; fr.seg++; } else { fr.pos.x += dx / d * rem; fr.pos.z += dz / d * rem; rem = 0; }
+  }
+  return fr.seg >= fr.path.length - 1;
+}
+
+/* ---------- breakdown + mechanic ---------- */
+const mech = { active: false, phase: '', t: 0, eta: 1, fee: 0, van: null, man: null, h: 0, prog: 0, label: '', a: [0, 0], b: [0, 0], clk: 0 };
+const mechFee = () => Math.round((3000 + S.damage * 120 + (S.broken ? 3500 : 0)) / 50) * 50;
+function breakDown(msg) {
+  if (S.broken || fuelRun.active) return;
+  S.broken = true; hazard = true; state.dead = true; persist(); toast(msg, 4500);
+  if (ride.phase === 'offer') declineRide();
+  helpNudge();
+}
+function helpNudge() { phone.tab = 'help'; setPhoneFull(true); renderPhone(); }
+function helpButtons() {
+  let h = '';
+  if ((S.broken || S.damage >= 25) && !mech.active) h += `<button data-p="mech" class="yes">🔧 CALL MECHANIC · ${fmtN(mechFee())}</button>`;
+  if (S.fuel <= 0.5 && !fuelRun.active) h += `<button data-p="fuelbike" class="yes">🏍️ ORDER BIKE TO BUY FUEL</button>`;
+  return h ? `<div class="prow wrap">${h}</div>` : '';
+}
+function helpCard() {
+  if (fuelRun.active) return `<div class="pcard"><h4>🏍️ Fuel run</h4><div class="navrow"><b>🏍️</b><div><b>${fuelRun.label}</b><div>Rider Sodiq${fuelRun.st ? ' · ' + fuelRun.st.name : ''}</div></div></div><small>Your car stays parked. The rider brings you back and you pour the fuel.</small></div>`;
+  if (mech.active) return `<div class="pcard"><h4>🔧 Mechanic Musa</h4><div class="navrow"><b>🔧</b><div><b>${mech.label}</b><div>Fee ${fmtN(mech.fee)} · pay after repair</div></div></div><div class="cd"><i id="mechBar" style="width:${Math.round(mech.prog * 100)}%"></i></div></div>`;
+  const bad = S.broken || S.fuel <= 0.5;
+  return `<div class="pcard"><h4>🆘 Roadside help</h4><div class="status ${bad ? 'bad' : 'on'}">${S.broken ? '🔴 Engine broken down' : S.fuel <= 0.5 ? '⛽ Out of fuel' : '🟢 Car is running'}</div><small>Fuel ${S.fuel.toFixed(1)} L · damage ${Math.round(S.damage)}%</small>${helpButtons() || '<small>No help needed right now.</small>'}</div>`;
+}
+function helpAction(a) {
+  if (a === 'mech') { if (!mech.active && (S.broken || S.damage >= 25)) callMechanic(); return true; }
+  if (a === 'fuelbike') { if (!fuelRun.active && S.fuel <= 0.5) orderFuelBike(); return true; }
+  return false;
+}
+function callMechanic() {
+  const m = mech;
+  if (!m.van) {
+    m.van = makeVehicle('van', 0xf1f1f1); scene.add(m.van);
+    m.man = makePerson('M', 1); m.man.userData.cloth.color.setHex(0x1f4e8c); m.man.userData.pant.color.setHex(0x1f4e8c); scene.add(m.man);
+  }
+  Object.assign(m, { active: true, phase: 'wait', h: state.heading, t: rand(10, 14), prog: 0, fee: mechFee(), label: 'On the way' }); m.eta = m.t;
+  m.van.visible = true; m.man.visible = false;
+  toast('🔧 Mechanic Musa: "I dey come, oga! Wait for me."', 4000); phone.tab = 'help'; renderPhone();
+}
+function finishMech() {
+  const m = mech, funds = S.ngn + S.usd * RATE; let pay = Math.floor(Math.min(m.fee, funds)); if (pay > 0 && !spend(pay)) pay = 0;
+  const full = pay >= m.fee;
+  S.damage = full ? Math.min(S.damage, 8) : Math.min(S.damage, 45); S.broken = false; hazard = false; state.dead = false; m.prog = 1; persist();
+  toast(full ? `✅ Car repaired! You paid ${fmtN(pay)}.` : pay > 0 ? `🔧 Quick fix done. You paid what you had (${fmtN(pay)}).` : '🔧 Musa fixed it for free: "Na God go bless you."', 4500);
+  m.phase = 'back'; m.t = 0; m.label = 'Done'; phone.tab = 'home'; renderPhone();
+}
+function updateMech(dt) {
+  const m = mech; if (!m.active) return;
+  const P = car.position, hh = m.h, fx = -Math.sin(hh), fz = -Math.cos(hh), rx = Math.cos(hh), rz = -Math.sin(hh);
+  const at = (s, side) => [P.x - fx * s + rx * side, P.z - fz * s + rz * side];
+  const man = m.man, van = m.van, legs = man.userData.legs, arms = man.userData.arms;
+  const walk = () => { const sw = Math.sin(state.time * 8) * 0.6; legs[0].rotation.x = sw; legs[1].rotation.x = -sw; arms[0].rotation.x = -sw * 0.6; arms[1].rotation.x = sw * 0.6; };
+  if (m.phase === 'wait') {
+    m.t -= dt; const [x, z] = at(7.5 + 142.5 * Math.max(0, m.t / m.eta), 0); van.position.set(x, 0, z); van.rotation.y = hh; m.label = 'ETA ' + Math.ceil(Math.max(0, m.t)) + 's';
+    if (m.t <= 0) { m.phase = 'walk'; m.t = 0; m.a = at(9, -1.9); m.b = at(-(dim.l / 2 + 1.1), -0.5); man.visible = true; toast('🔧 Mechanic Musa: "Oga, I don reach. Make I check am."', 3500); m.label = 'Mechanic arrived'; renderPhone(); }
+  } else if (m.phase === 'walk') {
+    m.t += dt; const k = Math.min(1, m.t / 4.5);
+    man.position.set(m.a[0] + (m.b[0] - m.a[0]) * k, 0.05, m.a[1] + (m.b[1] - m.a[1]) * k);
+    man.rotation.y = Math.atan2(-(m.b[0] - m.a[0]), -(m.b[1] - m.a[1])); walk();
+    if (k >= 1) { m.phase = 'fix'; m.t = 6; man.rotation.y = hh + Math.PI; legs.forEach(l => l.rotation.x = 0); m.clk = 0; m.label = 'Repairing…'; renderPhone(); }
+  } else if (m.phase === 'fix') {
+    m.t -= dt; m.prog = 1 - m.t / 6;
+    arms[0].rotation.x = -1.3 + Math.sin(state.time * 15) * 0.5; arms[1].rotation.x = -1.3 - Math.sin(state.time * 15) * 0.5;
+    m.clk -= dt; if (m.clk <= 0) { m.clk = 0.55; noiseBurst(2600, 0.07, 0.3); }
+    const b = $('mechBar'); if (b) b.style.width = Math.round(m.prog * 100) + '%';
+    if (m.t <= 0) finishMech();
+  } else if (m.phase === 'back') {
+    m.t += dt; const k = Math.min(1, m.t / 4);
+    man.position.set(m.b[0] + (m.a[0] - m.b[0]) * k, 0.05, m.b[1] + (m.a[1] - m.b[1]) * k);
+    man.rotation.y = Math.atan2(-(m.a[0] - m.b[0]), -(m.a[1] - m.b[1])); walk();
+    if (k >= 1) { man.visible = false; m.phase = 'leave'; m.t = 6.5; }
+  } else if (m.phase === 'leave') {
+    m.t -= dt; const e = 6.5 - m.t, [x, z] = at(7.5 - 14 * e, -4.2 * Math.min(1, e / 1.8)); van.position.set(x, 0, z);
+    if (m.t <= 0) { van.visible = false; m.active = false; m.phase = ''; renderPhone(); }
+  }
+}
+
+/* ---------- out of fuel: bike to the filling station and back ---------- */
+const fuelRun = { active: false, phase: '', bike: null, jerry: null, jerryIn: null, carry: null, pos: new THREE.Vector3(), hb: 0, h0: 0, path: [], seg: 0, t: 0, eta: 1, liters: 0, st: null, label: '', credit: false };
+function nearestStation(px, pz) {
+  const c0 = Math.round(px / B), r0 = Math.floor(pz / B); let best = null;
+  for (let ci = c0 - 8; ci <= c0 + 8; ci++) for (let cj = r0 - 8; cj <= r0 + 8; cj++) {
+    if (!isFuelTile(ci, cj)) continue;
+    const x = ci * B + 7.5, z = cj * B + 80, d = Math.abs(x - px) + Math.abs(z - pz);
+    if (!best || d < best.d) best = { ci, cj, x, z, d, price: 850 + hash(ci, cj) % 180, name: SITE_NAMES[hash(ci, cj) % SITE_NAMES.length] };
+  }
+  return best;
+}
+function orderFuelBike() {
+  const fr = fuelRun, P = car.position;
+  if (!fr.bike) {
+    makeVehicle.riders = 2; fr.bike = makeVehicle('okada', 0x1f5fbf); makeVehicle.riders = 0; scene.add(fr.bike);
+    const can = () => { const c = new THREE.Group(), j = new THREE.Mesh(bx(0.34, 0.46, 0.2), mat(0xe0a020, 0.5)); j.position.y = 0.23; c.add(j, Object.assign(new THREE.Mesh(bx(0.12, 0.08, 0.06), darkMat), { position: new THREE.Vector3(0, 0.5, 0) })); return c; };
+    fr.carry = can(); fr.carry.position.set(0, 0.75, 1.05); fr.carry.traverse(o => o.layers.set(1)); fr.bike.add(fr.carry);
+    fr.jerry = new THREE.Group(); fr.jerryIn = can(); fr.jerry.add(fr.jerryIn); layerAll(fr.jerry); scene.add(fr.jerry);
+  }
+  fr.carry.visible = false; fr.jerry.visible = false; fr.bike.visible = true;
+  Object.assign(fr, { active: true, phase: 'wait', h0: state.heading, t: rand(8, 12), credit: false, liters: 0, st: nearestStation(P.x, P.z), label: 'Rider on the way' }); fr.eta = fr.t;
+  toast('🏍️ Rider Sodiq: "Oga, I dey come! ₦2,000 to the filling station and back."', 4500); phone.tab = 'help'; renderPhone();
+}
+function bikeBuy(v) {
+  const fr = fuelRun, st = fr.st, funds = S.ngn + S.usd * RATE, room = Math.max(1, Math.floor(cfg.tank - S.fuel));
+  let l = v === 'max' ? room : Math.min(+v, room);
+  const afford = Math.floor((funds - 2000) / st.price);
+  if (afford < 1) { l = Math.min(2, room); fr.credit = true; S.stars = Math.max(1, S.stars - 0.1); toast('😅 You are short of cash. The rider lent you 2 L on credit.', 4000); }
+  else { l = Math.min(l, afford); spend(l * st.price); }
+  const P = car.position, hh = fr.h0, rx = Math.cos(hh), rz = -Math.sin(hh);
+  fr.liters = l; fr.phase = 'back'; fr.label = 'Riding back to your car'; fr.carry.visible = true;
+  fr.path = roadPath([st.x, st.z], [P.x + rx * 2.8, P.z + rz * 2.8]); fr.seg = 0; fr.pos.set(st.x, 0, st.z);
+  panelType = null; persist(); renderPhone();
+}
+function updateFuelRun(dt) {
+  const fr = fuelRun; if (!fr.active) return;
+  const P = car.position, hh = fr.h0, fx = -Math.sin(hh), fz = -Math.cos(hh), rx = Math.cos(hh), rz = -Math.sin(hh), bike = fr.bike;
+  const at = (s, side) => [P.x - fx * s + rx * side, P.z - fz * s + rz * side];
+  if (fr.phase === 'wait') {
+    fr.t -= dt; const [x, z] = at(150 * Math.max(0, fr.t / fr.eta), 2.8);
+    bike.position.set(x, 0, z); bike.rotation.y = hh; fr.pos.set(x, 0, z); fr.hb = hh; fr.label = 'Rider arriving · ' + Math.ceil(Math.max(0, fr.t)) + 's';
+    if (fr.t <= 0) { fr.phase = 'board'; fr.t = 1.4; fr.label = 'Boarding…'; toast('🏍️ Rider Sodiq: "Oga, enter! We dey go the filling station."', 3500); renderPhone(); }
+  } else if (fr.phase === 'board') {
+    fr.t -= dt;
+    if (fr.t <= 0) { fr.phase = 'toStation'; fr.path = roadPath([fr.pos.x, fr.pos.z], [fr.st.x, fr.st.z]); fr.seg = 0; fr.label = 'Riding to ' + fr.st.name; renderPhone(); }
+  } else if (fr.phase === 'toStation' || fr.phase === 'back') {
+    const done = stepPath(fr, dt, 24); bike.position.copy(fr.pos); bike.rotation.y = fr.hb;
+    if (done) {
+      if (fr.phase === 'toStation') { fr.phase = 'buy'; fr.label = 'At the filling station'; renderPhone(); }
+      else { fr.phase = 'pour'; fr.t = 3.4; fr.label = 'Pouring fuel…'; fr.carry.visible = false; fr.jerry.visible = true; renderPhone(); }
+    }
+  } else if (fr.phase === 'pour') {
+    fr.t -= dt; const k = Math.min(1, 1 - fr.t / 3.4), [bx2, bz2] = at(0, 2.8), [jx, jz] = at(dim.l * 0.32, dim.w / 2 + 0.5);
+    bike.position.set(bx2, 0, bz2); bike.rotation.y = hh;
+    fr.jerry.position.set(jx, 0.95, jz); fr.jerry.rotation.y = hh; fr.jerryIn.rotation.z = k * 1.2;
+    if (fr.t <= 0) {
+      S.fuel = Math.min(cfg.tank, S.fuel + fr.liters); state.dead = false; fr.jerry.visible = false;
+      const ok = fr.credit ? false : spend(2000);
+      toast(`⛽ +${fr.liters} L poured into your tank. ${fr.credit ? 'Rider gave you fuel on credit.' : ok ? 'Bike fare ₦2,000 paid.' : 'Rider forgave the fare.'}`, 4500);
+      fr.phase = 'leave'; fr.t = 5.5; fr.label = 'Rider leaving'; phone.tab = 'home'; persist(); renderPhone();
+    }
+  } else if (fr.phase === 'leave') {
+    fr.t -= dt; const [x, z] = at(-14 * (5.5 - fr.t), 2.8); bike.position.set(x, 0, z);
+    if (fr.t <= 0) { bike.visible = false; fr.active = false; fr.phase = ''; renderPhone(); }
+  }
+}
+
+/* ---------- eat & rest ---------- */
+function extraPanelAction(a, v) {
+  if (a === 'eat') {
+    const d = DISHES[+v];
+    if (S.food >= 98) pmsg = 'You are full already 😄';
+    else if (spend(d.p)) { S.food = Math.min(100, S.food + d.f); S.rest = Math.min(100, S.rest + d.r); pmsg = `Mmm… ${d.n}. Enjoy!`; }
+    else pmsg = 'Not enough money';
+  } else if (a === 'rest') {
+    if (S.rest >= 95) pmsg = 'You are not tired yet.'; else { rest.on = true; rest.t = 6; state.speed = 0; }
+  } else if (a === 'bikebuy') bikeBuy(v);
+  persist(); renderPanel();
+}
+
+/* ---------- important places: data, boards, search, navigation ---------- */
+const POI_T = {
+  hospital: ['🏥', 'Hospital', '#b91c1c'], police: ['🚓', 'Police station', '#1d4ed8'], market: ['🛒', 'Market', '#d97706'], school: ['🏫', 'School', '#7c3aed'],
+  mosque: ['🕌', 'Mosque', '#047857'], church: ['⛪', 'Church', '#6d28d9'], bank: ['🏦', 'Bank / ATM', '#0f766e'], hotel: ['🏨', 'Hotel', '#9d174d'],
+  park: ['🚌', 'Motor park', '#374151'], workshop: ['🔧', 'Mechanic workshop', '#92400e'], fuel: ['⛽', 'Filling station', '#14532d'],
+  garage: ['🛠️', 'Auto garage', '#1f4e8c'], food: ['🍲', 'Food (buka)', '#7a3b12'], landmark: ['🏛️', 'Landmark', '#7a4a12']
+};
+const GEN_TYPES = ['hospital', 'police', 'market', 'school', 'mosque', 'church', 'bank', 'hotel', 'park', 'workshop'];
+const HOTELS = ['Palm Grove Hotel', 'Royal Oak Hotel', 'Ibadan Heights Hotel', 'Cocoa Inn'], BANKS = ['Pacesetter Bank', 'Oluyole Bank', 'Unity Bank'];
+const tc = s => s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+function poisAt(ci, cj) {
+  const hs0 = hash(ci, cj), hs = hash(ci * 5 + 11, cj * 13 + 7), ty = hash(ci * 7 + 3, cj * 11 + 5) >>> 8, st = distAtTile(ci, cj), out = [];
+  const add = (type, name, z) => out.push({ id: ci + ',' + cj + ',' + type, type, name, x: ci * B + 7, z: cj * B + z, ci, cj, st });
+  if (st.lm && !railAt(ci) && ((ci === 0 && cj === 0) || hs0 % 3 === 0)) { const k = Array.isArray(st.lm) ? st.lm[hs0 % st.lm.length] : st.lm; add('landmark', k === 'cocoa' ? 'Cocoa House' : k === 'mapo' ? 'Mapo Hall' : "Bower's Tower", 80); }
+  if (isFuelTile(ci, cj)) add('fuel', `${SITE_NAMES[hs0 % SITE_NAMES.length]} Filling Station`, 80);
+  if (isGarTile(ci, cj)) add('garage', `${st.name} Auto Garage`, 80);
+  if (isFoodTile(ci, cj)) add('food', tc(VENDOR_NAMES[hs0 % VENDOR_NAMES.length]), 125);
+  if (hs % 100 < 26) {
+    const type = GEN_TYPES[ty % GEN_TYPES.length];
+    add(type, { hospital: `${st.name} General Hospital`, police: `${st.name} Police Station`, market: `${st.name} Market`, school: `${st.name} Grammar School`, mosque: `${st.name} Central Mosque`,
+      church: `${st.name} Cathedral`, bank: `${BANKS[hs % BANKS.length]} (${st.name})`, hotel: HOTELS[hs % HOTELS.length], park: `${st.name} Motor Park`, workshop: `${st.name} Mechanic Workshop` }[type], 120);
+  }
+  return out;
+}
+function findPois(q, type) {
+  const P = car.position, c0 = Math.round(P.x / B), r0 = Math.floor(P.z / B), res = [];
+  for (let ci = c0 - 7; ci <= c0 + 7; ci++) for (let cj = r0 - 7; cj <= r0 + 7; cj++) for (const p of poisAt(ci, cj)) {
+    p.d = Math.abs(p.x - P.x) + Math.abs(p.z - P.z);
+    const hay = (p.name + ' ' + POI_T[p.type][1] + ' ' + p.st.name + ' ' + p.type).toLowerCase();
+    if ((!type || p.type === type) && (!q || q.split(/\s+/).every(w => hay.includes(w)))) res.push(p);
+  }
+  return res.sort((a, b) => a.d - b.d).slice(0, 8);
+}
+function makePoiBoard() {
+  const g = new THREE.Group(), cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
+  const cx = cv.getContext('2d'), tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 6, 6), poleMat); pole.position.y = 3;
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 2.2), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })); board.position.y = 5.2;
+  g.add(pole, board);
+  g.userData.draw = p => {
+    const T = POI_T[p.type], w = p.name.split(' '), h = Math.ceil(w.length / 2);
+    cx.fillStyle = T[2]; cx.fillRect(0, 0, 512, 256); cx.fillStyle = '#ffffff22'; cx.fillRect(0, 0, 512, 12);
+    cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.font = '100px Arial'; cx.fillText(T[0], 256, 70);
+    cx.fillStyle = '#fff'; cx.font = 'bold 42px Arial'; cx.fillText(w.slice(0, h).join(' '), 256, 160); cx.fillText(w.slice(h).join(' '), 256, 212); tex.needsUpdate = true;
+  };
+  layerAll(g); g.visible = false; scene.add(g); return g;
+}
+const boardPool = Array.from({ length: 8 }, makePoiBoard);
+function assignBoards() {
+  const P = focusPos(), list = [];
+  for (const t of tiles) { const U = t.userData; if (!U.key) continue; for (const p of poisAt(U.ci, U.cj)) if (GEN_TYPES.includes(p.type)) list.push({ p, d: Math.hypot(p.x - P.x, p.z - P.z) }); }
+  list.sort((a, b) => a.d - b.d);
+  boardPool.forEach((g, i) => {
+    const e = list[i]; g.visible = !!e && e.d < 380; if (!g.visible) return;
+    const p = e.p; g.position.set(p.ci * B - 10.8, 0.2, p.z); g.rotation.y = Math.PI / 2;
+    if (g.userData.id !== p.id) { g.userData.id = p.id; g.userData.draw(p); }
+  });
+}
+function renderPlaces() {
+  const q = $('plInput').value.trim().toLowerCase();
+  $('plChips').innerHTML = `<button data-t="" class="${placeFilter ? '' : 'on'}">ALL</button>` + Object.entries(POI_T).map(([k, v]) => `<button data-t="${k}" class="${placeFilter === k ? 'on' : ''}">${v[0]} ${v[1]}</button>`).join('');
+  placeRes = findPois(q, placeFilter);
+  $('plList').innerHTML = placeRes.map((p, i) => { const T = POI_T[p.type]; return `<div class="plitem"><i>${T[0]}</i><div><b>${p.name}</b><small>${T[1]} · ${p.st.name}${kindTag(p.st)} · ${roadName('z', p.ci, p.st)}</small></div><span>${p.d >= 1000 ? (p.d / 1000).toFixed(1) + ' km' : Math.round(p.d) + ' m'}</span><button data-go="${i}">GO</button></div>`; }).join('') || '<small class="plnone">No places found nearby. Try another word.</small>';
+}
+function openPlaces() { $('places').classList.add('on'); renderPlaces(); }
+function navigateTo(p) {
+  if (!p) return;
+  if (ride.phase === 'pickup' || ride.phase === 'trip') { toast('Finish or cancel your current trip first.'); return; }
+  const P = car.position;
+  placeNav = p; nav.target = { x: p.x, z: p.z }; bm.color.setHex(0x38bdf8); beacon.position.set(p.x, 0, p.z); beacon.visible = true; navKey = '';
+  $('places').classList.remove('on'); toast(`🧭 Navigating to ${p.name} · ${Math.round(Math.abs(p.x - P.x) + Math.abs(p.z - P.z))} m`, 3500); say(`Navigating to ${p.name}`);
+}
+function stopNav(msg) {
+  placeNav = null; if (ride.phase === 'none' || ride.phase === 'offer') { nav.target = null; beacon.visible = false; }
+  if (msg) toast(msg, 2000);
+}
+$('searchBtn').addEventListener('pointerdown', e => { e.preventDefault(); openPlaces(); });
+$('plClose').addEventListener('click', () => $('places').classList.remove('on'));
+$('plInput').addEventListener('input', renderPlaces);
+$('places').addEventListener('click', e => {
+  const t = e.target.closest('[data-t]'); if (t) { placeFilter = t.dataset.t; renderPlaces(); return; }
+  const go = e.target.closest('[data-go]'); if (go) navigateTo(placeRes[+go.dataset.go]);
+});
+$('navX').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); stopNav('Navigation cancelled'); });
+
+/* ---------- per-frame service updates ---------- */
+let svT = 0;
+function updateServices(dt) {
+  const P = car.position, lock = rest.on || fuelRun.active;
+  if (lock) state.speed *= Math.max(0, 1 - 6 * dt);
+  if (!lock) {
+    S.food = Math.max(0, S.food - dt * (0.05 + Math.abs(state.speed) * 0.0016));
+    S.rest = Math.max(0, S.rest - dt * (0.04 + Math.abs(state.speed) * 0.0012));
+    if (S.food < 22 && !warned.food) { warned.food = true; toast('🍲 You are hungry. Find a buka (food vendor) and eat!', 4000); }
+    if (S.food > 35) warned.food = false;
+    if (S.rest < 22 && !warned.rest) { warned.rest = true; toast('😴 You are tired. Stop at a buka and rest!', 4000); }
+    if (S.rest > 35) warned.rest = false;
+  }
+  if (rest.on) {
+    rest.t -= dt; S.rest = Math.min(100, S.rest + dt / 6 * 50); state.tod = (state.tod + dt * 0.25) % 24;
+    const rb = $('restBar'); if (rb) rb.style.width = Math.min(100, 100 * (1 - rest.t / 6)) + '%';
+    if (rest.t <= 0) { rest.on = false; toast('💤 You feel refreshed. Back to work!'); persist(); }
+  }
+  if (!S.broken && !lock && Math.abs(state.speed) > 6) {
+    const risk = 0.0015 + Math.pow(S.damage / 100, 2) * 0.012;
+    if (Math.random() < risk * dt) breakDown('🔧 The engine overheated and died! Open your phone → HELP.');
+  }
+  smoke.forEach((m, i) => {
+    m.visible = S.broken; if (!S.broken) return;
+    const ph = (state.time * 0.7 + i / smoke.length) % 1;
+    m.position.set(i % 2 ? 0.25 : -0.25, 1.15 + ph * 1.7, -dim.l * 0.3); m.scale.setScalar(0.5 + ph * 1.6); m.material.opacity = 0.55 * (1 - ph);
+  });
+  for (const g of vendorPool) if (g.visible) g.userData.steam.forEach((s, i) => { const ph = (state.time * 0.5 + i / 3) % 1; s.position.y = 1.7 + ph * 1.1; s.scale.setScalar(0.4 + ph * 0.8); s.material.opacity = 0.5 * (1 - ph); });
+  updateMech(dt); updateFuelRun(dt);
+  if (placeNav && (!nav.target || nav.target.x !== placeNav.x || nav.target.z !== placeNav.z)) placeNav = null;
+  if (placeNav && Math.hypot(P.x - placeNav.x, P.z - placeNav.z) < 16 && Math.abs(state.speed) < 4) {
+    const n = placeNav.name; placeNav = null; nav.target = null; beacon.visible = false;
+    toast(`📍 You have arrived: ${n}`, 4000); say(`You have arrived at ${n}`);
+  }
+  const tiredLvl = S.rest < 15 ? 1 - S.rest / 15 : 0;
+  $('drowsy').style.opacity = tiredLvl * (0.35 + 0.35 * Math.pow(Math.sin(state.time * 2), 2));
+  svT -= dt; if (svT <= 0) { svT = 0.4; if (fuelRun.active || mech.active) updatePhoneHead(); }
+}
+
 /* ================= GAME LOOP ================= */
 const camPos = new THREE.Vector3(), look = new THREE.Vector3(), tmp = new THREE.Vector3();
 camera.position.set(6, 5, 130);
@@ -1434,16 +1824,18 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.04);
   state.time += dt;
   const dark = updateEnv(dt), P = car.position;
+  const lock = rest.on || fuelRun.active, F = focusPos();
   for (const m of mixers) m.update(dt);
 
   // ---- input ----
-  const thrIn = state.throttle || keys.has('w') || keys.has('arrowup');
-  const brkIn = state.braking || keys.has('s') || keys.has('arrowdown');
+   const thrIn = !lock && (state.throttle || keys.has('w') || keys.has('arrowup'));
+  const brkIn = !lock && (state.braking || keys.has('s') || keys.has('arrowdown'));
   const hand = keys.has(' '), hornOn = state.horn || keys.has('h');
-  const nitroWant = state.nitroKey || keys.has('shift');
-  const steerIn = clamp((state.sR ? 1 : 0) - (state.sL ? 1 : 0) + (keys.has('a') || keys.has('arrowleft') ? -1 : 0) + (keys.has('d') || keys.has('arrowright') ? 1 : 0), -1, 1);
+  const nitroWant = !lock && (state.nitroKey || keys.has('shift'));
+  const tired = !lock && S.rest < 15 && Math.abs(state.speed) > 8 ? (15 - S.rest) / 15 : 0;
+  const steerIn = lock ? 0 : clamp((state.sR ? 1 : 0) - (state.sL ? 1 : 0) + (keys.has('a') || keys.has('arrowleft') ? -1 : 0) + (keys.has('d') || keys.has('arrowright') ? 1 : 0) + Math.sin(state.time * 1.3) * 0.35 * tired, -1, 1);
   state.steer = damp(state.steer, steerIn, steerIn === 0 ? 9 : 4.5, dt);
-  const hasFuel = S.fuel > 0.001;
+  const hasFuel = S.fuel > 0.001 && !S.broken;
   state.thr = damp(state.thr, thrIn && hasFuel ? 1 : 0, 6, dt);
   const nitroOn = nitroWant && state.nitro > 0.01 && thrIn && hasFuel;
   state.nitro = clamp(state.nitro + (nitroOn ? -0.3 : 0.07) * dt, 0, 1);
@@ -1454,7 +1846,7 @@ function animate() {
   }
 
   // ---- longitudinal physics ----
-  const grip = wx.grip * (1 - S.damage / 400), vmax = cfg.maxV * (1 - S.damage / 300) * (nitroOn ? 1.3 : 1);
+  const grip = wx.grip * (1 - S.damage / 400), vmax = cfg.maxV * (1 - S.damage / 300) * (nitroOn ? 1.3 : 1) * (S.food < 10 ? 0.7 : 1);
   if (state.thr > 0.01) {
     if (state.speed < -0.3) state.speed += 30 * dt;
     else state.speed += cfg.acc * Math.max(0, 1 - state.speed / vmax) * (nitroOn ? 2 : 1) * state.thr * dt * (0.5 + 0.5 * grip);
@@ -1496,10 +1888,10 @@ function animate() {
     state.dead = false;
     if (S.fuel < cfg.tank * 0.15 && !state.lowFuel) { state.lowFuel = true; toast('⛽ Low fuel! Find a fuel station'); }
     if (S.fuel > cfg.tank * 0.2) state.lowFuel = false;
-  } else if (!state.dead) { state.dead = true; toast('Engine died: out of fuel!'); }
+  } else if (!state.dead) { state.dead = true; if (!S.broken) { toast('Engine died: out of fuel!'); helpNudge(); } }
 
   // ---- railway & aeroplane ----
-  bellOn = updateRail(dt); updatePlane(dt);
+  updateServices(dt); bellOn = updateRail(dt); updatePlane(dt);
 
   // ---- wheels, lights ----
   for (const w of body.userData.wheels) { w.spin.rotation.x -= state.speed * dt / 0.38; if (w.front) w.pivot.rotation.y = -state.steer * 0.4; }
@@ -1584,24 +1976,28 @@ function animate() {
   // ---- world ----
   updateTiles();
   siteT -= dt; if (siteT <= 0) { siteT = 0.5; assignSites(); }
-  ground.position.set(Math.round(P.x / 10) * 10, -0.08, Math.round(P.z / 10) * 10); ground.material = GROUND[st.ground];
-  sun.position.set(P.x - 20, 35, P.z + 15); sun.target.position.copy(P);
+  ground.position.set(Math.round(F.x / 10) * 10, -0.08, Math.round(F.z / 10) * 10); ground.material = GROUND[distAt(F.x, F.z).ground];
+  sun.position.set(F.x - 20, 35, F.z + 15); sun.target.position.copy(F);
   beacon.rotation.y += dt; bm.opacity = 0.22 + Math.sin(state.time * 4) * 0.08;
   updateCP(dt);
   if (st.name !== state.st) { if (state.st) toast(`📍 Entering ${st.name}${kindTag(st)}`, 3000); state.st = st.name; }
 
   // ---- panels ----
-  const slow = Math.abs(state.speed) < 2.5; let curFuel = null, atGar = false;
-  for (const g of fuelPool) if (g.visible && slow && Math.hypot(g.position.x + 9.6 - P.x, g.position.z - P.z) < 14) curFuel = g.userData.site;
-  for (const g of garPool) if (g.visible && slow && Math.hypot(g.position.x + 9.6 - P.x, g.position.z - P.z) < 14) atGar = true;
-  const want = cp.pending ? 'police' : S.fuel <= 0 && Math.abs(state.speed) < 0.5 ? 'rescue' : curFuel ? 'fuel' : atGar ? 'garage' : null;
+    const slow = Math.abs(state.speed) < 2.5; let curFuel = null, atGar = false, curFood = null;
+  if (!fuelRun.active) {
+    for (const g of fuelPool) if (g.visible && slow && Math.hypot(g.position.x + 9.6 - P.x, g.position.z - P.z) < 14) curFuel = g.userData.site;
+    for (const g of garPool) if (g.visible && slow && Math.hypot(g.position.x + 9.6 - P.x, g.position.z - P.z) < 14) atGar = true;
+    for (const g of vendorPool) if (g.visible && slow && Math.hypot(g.position.x + 9.6 - P.x, g.position.z - P.z) < 14) curFood = g.userData;
+  }
+  const want = cp.pending ? 'police' : fuelRun.phase === 'buy' ? 'bikefuel' : rest.on ? 'rest' : curFood ? 'food' : curFuel ? 'fuel' : atGar ? 'garage' : null;
   if (want === 'fuel') fuelSite = curFuel;
+  if (want === 'food') foodName = curFood.vname || 'Buka';
   if (want !== panelType) showPanel(want);
 
   // ---- ride / phone logic ----
   if (ride.phase === 'none') {
     ride.timer -= dt;
-    if (ride.timer <= 0 && !panelType && phone.online && !phone.summary) newOffer();
+    if (ride.timer <= 0 && !panelType && phone.online && !phone.summary && canWork()) newOffer();
   } else if (ride.phase === 'offer') {
     ride.expire -= dt; ringT -= dt;
     if (ringT <= 0) { ringT = 1.5; ringPhone(); }
@@ -1619,7 +2015,7 @@ function animate() {
   car.updateMatrixWorld();
   const ty = body.userData.topY || 1.5, W = v => car.localToWorld(tmp.set(v[0], v[1], v[2]));
   let fov = 62 + sf * 14 + (nitroOn ? 10 : 0), snap = false;
-  switch (camIdx) {
+  if (bikeFollow()) { followBikeCam(camPos, look); fov = 66; } else switch (camIdx) {
     case 0: camPos.copy(W([0, 4 + sf * 0.5, 8.5 + sf * 1.5])); look.copy(W([0, 1.2, -6])); break;
     case 1: camPos.copy(W([0, 7 + sf, 16 + sf * 3])); look.copy(W([0, 1, -12])); fov = 58 + sf * 12; break;
     case 2: camPos.copy(W([0, ty - 0.25, -dim.l * 0.22])); look.copy(W([0, ty - 0.4, -30])); snap = true; fov = 72 + sf * 16; break;
@@ -1668,7 +2064,10 @@ function animate() {
     const sg = signalAhead();
     $('wxt').textContent = `${WX[wxKey].i} ${WX[wxKey].n} · ${hm}${sg ? ' · 🚦 ' + sg : ''}${train.on && Math.hypot(train.railX - P.x, train.z - P.z) < 300 ? ' · 🚆 TRAIN' : ''}`;
     $('pTime').textContent = hm;
-    $('stat').textContent = `★ ${S.stars.toFixed(1)} · Rides ${S.rides} · Damage ${Math.round(S.damage)}%`;
+    $('stat').textContent = `★ ${S.stars.toFixed(1)} · Rides ${S.rides} · Damage ${Math.round(S.damage)}%${S.broken ? ' · 🔧 BROKEN' : ''}`;
+    const bf = $('foodFill'), br = $('restFill'); bf.style.width = S.food + '%'; br.style.width = S.rest + '%';
+    bf.style.background = S.food < 22 ? '#ff4350' : '#f59e0b'; br.style.background = S.rest < 22 ? '#ff4350' : '#8b5cf6';
+    $('foodTxt').textContent = `🍲 ${Math.round(S.food)}`; $('restTxt').textContent = `😴 ${Math.round(S.rest)}`;
     if (Math.random() < 0.05) persist();
   }
 
